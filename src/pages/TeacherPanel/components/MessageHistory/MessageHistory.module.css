@@ -1,0 +1,49 @@
+.container {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  background: #4a5568;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.empty {
+  color: #a0aec0;
+  text-align: center;
+  padding: 16px;
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.message {
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
+.teacher {
+  align-self: flex-end;
+  background: #4299e1;
+  color: white;
+}
+
+.student {
+  align-self: flex-start;
+  background: #5a677a;
+  color: white;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.text {
+  font-size: 14px;
+}

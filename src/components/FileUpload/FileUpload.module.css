@@ -1,0 +1,53 @@
+.uploadContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.uploadButton {
+  background: #3b82f6;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.3s;
+}
+
+.uploadButton:hover {
+  background: #2563eb;
+}
+
+.uploadButton:disabled {
+  background: #64748b;
+  cursor: not-allowed;
+}
+
+.fileName {
+  color: white;
+  font-size: 14px;
+  margin-left: 10px;
+}
+
+.progressBar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progressBar div {
+  height: 100%;
+  background: #10b981;
+  transition: width 0.3s;
+}
+
+.error {
+  color: #ef4444;
+  font-size: 14px;
+}

@@ -1,0 +1,28 @@
+.studentItem {
+  padding: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.studentItem:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.studentItem.selected {
+  background-color: rgba(212, 175, 55, 0.2);
+}
+
+.onlineDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #10b981;
+  margin-right: 8px;
+}
+
+.offlineText {
+  color: #9ca3af;
+  font-size: 0.75rem;
+}

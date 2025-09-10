@@ -1,0 +1,42 @@
+.studentSelectionDropdown {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  min-width: 150px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 99999;
+  right: 0;
+  bottom: 100%;
+}
+
+.studentSelectionDropdown.mobile {
+  position: fixed;
+  bottom: 50%;
+  left: 50%;
+  transform: translate(-50%, 50%);
+  width: 80%;
+  max-height: 60vh;
+}
+
+.studentSelectionItem {
+  padding: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  border-radius: 0.25rem;
+}
+
+.studentSelectionItem:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.studentSelectionItem.selected {
+  background-color: rgba(212, 175, 55, 0.3);
+}
+
+.studentSelectionCheckbox {
+  margin-right: 0.75rem;
+}

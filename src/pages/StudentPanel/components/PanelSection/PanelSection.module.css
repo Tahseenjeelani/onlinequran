@@ -1,0 +1,6 @@
+.panelSection {
+  padding: .25rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}

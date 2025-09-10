@@ -1,0 +1,64 @@
+.fileItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  border-radius: 6px;
+  
+  background-color: rgba(255, 255, 255, 0.05);
+  box-sizing: border-box;
+}
+
+/* Keep all other styles the same as before */
+.fileItem.shared {
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+.fileName {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  
+  cursor: pointer;
+}
+
+.fileName span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fileActions {
+  display: flex;
+  align-items: center;
+  margin-left: 10px;
+  flex-shrink: 0;
+}
+
+.shareStatus {
+  font-size: 0.75rem;
+  margin-right: 10px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.shareStatus.shared {
+  color: #10B981;
+}
+
+.shareArrow {
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.shareArrow.shared {
+  color: #10B981;
+}
+
+.shareArrow:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}

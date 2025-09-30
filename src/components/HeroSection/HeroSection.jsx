@@ -7,13 +7,15 @@ const HeroSection = () => {
   return (
     <section className={styles.heroSection}>
       <div className={styles.heroContent}>
-        <h1 className="mb-10 text-heading">
+        {/* Option 2: Classic Calligraphy Style */}
+        <div className="text-center space-y-6 mb-6">
+          
+        
+        <h1 className="mb-5 text-heading">
           Learn Quran Online <br />
-          <span className="text-teal-300">With Certified Teachers</span>
+          <span className="text-teal-300">With a Certified Teacher</span>
         </h1>
-        <p className="max-w-2xl mx-auto mb-16 text-subheading">
-          Personalized 1-on-1 Quran classes for all ages. Start your journey today with native Arabic instructors.
-        </p>
+        
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <Link to="/teacher-login">
             <Button>Teacher Login</Button>
@@ -21,6 +23,13 @@ const HeroSection = () => {
           <Link to="/student-login">
             <Button>Student Login</Button>
           </Link>
+        </div>
+        <div className="relative">
+            <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent"></div>
+            <span className="relative bg-transparent px-8 text-xl md:text-2xl font-['Cormorant_Garamond'] font-semibold text-[#4f8c85] italic tracking-wider">
+              Ancient Wisdom for the Modern Student
+            </span>
+          </div>
         </div>
       </div>
     </section>

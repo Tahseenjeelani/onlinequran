@@ -46,11 +46,7 @@ const TeacherPanel = () => {
       <Header showBackButton backUrl="/teacher-landing" />
       <main className="flex-grow">
         {isDesktop ? (
-          <DesktopLayout 
-            students={students}
-            selectedStudents={selectedStudents}
-            onStudentSelect={handleStudentSelect}
-          />
+          <DesktopLayout />
         ) : (
           <MobileTabs 
             students={students}

@@ -28,15 +28,42 @@ const DesktopLayout = () => {
         }));
         setStudents(studentsData);
 
-        // Fetch files
+        // Fetch files - Enhanced to handle different Firebase structures
         const filesSnapshot = await getDocs(collection(db, 'teacher-files'));
-        const filesData = filesSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        console.log('Files from Firebase:', filesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        
+        const filesData = filesSnapshot.docs.map(doc => {
+          const fileData = doc.data();
+          console.log('Processing file:', fileData);
+          
+          // Handle different possible field names in Firebase
+          return {
+            id: doc.id,
+            name: fileData.name || fileData.fileName || fileData.filename || 'Unnamed File',
+            size: fileData.size || fileData.fileSize || 0,
+            uploadedAt: fileData.uploadedAt || fileData.createdAt || fileData.timestamp || new Date(),
+            url: fileData.url || fileData.downloadURL || fileData.fileUrl,
+            sharedWith: fileData.sharedWith || fileData.sharedTo || []
+          };
+        });
+        
+        console.log('Processed files:', filesData);
         setFiles(filesData);
       } catch (error) {
         console.error("Error loading data:", error);
+        
+        // Fallback sample data if Firebase fails
+        const sampleFiles = [
+          {
+            id: '1',
+            name: 'Quran_Study_Guide.pdf',
+            size: 2.4,
+            uploadedAt: '2024-01-15',
+            url: '#',
+            sharedWith: []
+          }
+        ];
+        setFiles(sampleFiles);
       }
     };
 
@@ -73,11 +100,16 @@ const DesktopLayout = () => {
   };
 
   const toggleFileShare = async (fileId) => {
-    if (!mainSelectedStudent) return;
+    if (!mainSelectedStudent) {
+      console.log('No student selected for sharing');
+      return;
+    }
     
     const fileRef = doc(db, 'teacher-files', fileId);
     const file = files.find(f => f.id === fileId);
     const isShared = file.sharedWith?.includes(mainSelectedStudent);
+
+    console.log(`Toggling share for file ${fileId} with student ${mainSelectedStudent}, currently shared: ${isShared}`);
 
     try {
       await updateDoc(fileRef, {
@@ -96,8 +128,21 @@ const DesktopLayout = () => {
             }
           : f
       ));
+      
+      console.log(`File ${fileId} share status updated successfully`);
     } catch (error) {
       console.error('Error updating file sharing:', error);
+    }
+  };
+
+  const handleFileClick = (file) => {
+    console.log('File clicked:', file);
+    if (file.url && file.url !== '#') {
+      window.open(file.url, '_blank');
+    } else {
+      console.warn('No valid URL for file:', file.name);
+      // You can add a fallback behavior here, like showing a message
+      alert(`File "${file.name}" doesn't have a valid download link.`);
     }
   };
 
@@ -125,14 +170,14 @@ const DesktopLayout = () => {
     <div className={styles.desktopLayout}>
       {/* Students List Section - Fixed */}
       <div className={`${styles.studentsSection} panel-section p-4`}>
-        <div className="flex items-center justify-between mb-4"> {/* Reduced margin-bottom */}
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-white text-lg font-bold">Students</h2>
-          <div className="text-white text-sm truncate max-w-[120px]"> {/* Added truncate */}
+          <div className="text-white text-sm truncate max-w-[120px]">
             {mainSelectedStudent ? students.find(s => s.id === mainSelectedStudent)?.name : 'None selected'}
           </div>
         </div>
-        <div className={`${styles.studentsList} overflow-y-auto`}> {/* Added scrollable class */}
-          <div className="space-y-1 pr-2"> {/* Added right padding for scrollbar */}
+        <div className={`${styles.studentsList} overflow-y-auto`}>
+          <div className="space-y-1 pr-2">
             {students.map(student => (
               <StudentItem
                 key={student.id}
@@ -197,24 +242,33 @@ const DesktopLayout = () => {
         />
       </div>
       
-      {/* Files Section */}
+      {/* Files Section - Updated with proper FileItem integration */}
       <div className={`${styles.filesSection} panel-section p-4`}>
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-white text-lg font-bold">Files</h2>
           <div className="text-white text-sm">
             {mainSelectedStudent ? students.find(s => s.id === mainSelectedStudent)?.name : 'None selected'}
           </div>
         </div>
-        <div className={`${styles.filesGrid} overflow-y-auto max-h-[200px]`}>
-          {files.map(file => (
-            <FileItem 
-              key={file.id}
-              name={file.name}
-              isShared={mainSelectedStudent && file.sharedWith?.includes(mainSelectedStudent)}
-              onShare={() => toggleFileShare(file.id)}
-              onClick={() => window.open(file.url, '_blank')}
-            />
-          ))}
+        <div className={`${styles.filesList} overflow-y-auto`}>
+          <div className="space-y-2 pr-2">
+            {files.length > 0 ? (
+              files.map(file => (
+                <FileItem 
+                  key={file.id}
+                  file={file}
+                  onShare={() => toggleFileShare(file.id)}
+                  isShared={mainSelectedStudent && file.sharedWith?.includes(mainSelectedStudent)}
+                  onClick={() => handleFileClick(file)}
+                />
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-400 mb-2">No files found</p>
+                <p className="text-gray-500 text-sm">Upload files in File Management</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

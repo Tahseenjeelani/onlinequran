@@ -1,11 +1,10 @@
-/* DesktopLayout.module.css */
 .desktopLayout {
   display: grid;
   grid-template-columns: 25% 50% 25%;
   grid-template-rows: 58% 38%;
   height: calc(100vh - 40px);
   margin-top: 40px;
-   gap: 5px;
+  gap: 5px;
   padding: 5px;
   box-sizing: border-box;
   overflow: hidden;
@@ -16,8 +15,7 @@
   grid-row: 1 / span 2;
   display: flex;
   flex-direction: column;
-  padding-bottom: 20px; /* Reduced bottom padding */
- 
+  padding-bottom: 20px;
 }
 
 .studentsList {
@@ -48,7 +46,6 @@
   grid-row: 1;
   display: flex;
   flex-direction: column;
-  
 }
 
 .filesSection {
@@ -56,7 +53,23 @@
   grid-row: 2;
   display: flex;
   flex-direction: column;
-  height: calc(100% - 12px); 
+  height: calc(100% - 12px);
+}
+
+.filesList {
+  flex-grow: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+}
+
+.filesList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.filesList::-webkit-scrollbar-thumb {
+  background-color: rgba(255,255,255,0.2);
+  border-radius: 3px;
 }
 
 .conferenceContent {
@@ -79,14 +92,6 @@
 .studentsContent {
   flex-grow: 1;
   overflow: hidden;
-}
-
-.filesGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-  flex-grow: 1;
-  max-height: calc(100% - 40px);
 }
 
 .disabledPanel {

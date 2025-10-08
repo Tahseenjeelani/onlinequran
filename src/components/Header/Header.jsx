@@ -13,7 +13,7 @@ const Header = ({ showBackButton = false, backUrl = '/' }) => {
         )}
         <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-4">
           <span className="text-white arabic text-3xl" style={{fontFamily: "'Reem Kufi', sans-serif"}}>
-            مدرسہ العائشہ
+            مدرسة العائشہ
           </span>
          {/*<span className="text-white opacity-30 text-xs  md:border-l md:border-white md:border-opacity-30 md:pl-4" style={{fontFamily: "'Playfair Display', sans-serif"}}>
            Ancient Wisdom for the Modern Student

@@ -56,20 +56,32 @@
   height: calc(100% - 12px);
 }
 
-.filesList {
+.filesGridContainer {
   flex-grow: 1;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.2) transparent;
 }
 
-.filesList::-webkit-scrollbar {
+.filesGridContainer::-webkit-scrollbar {
   width: 6px;
 }
 
-.filesList::-webkit-scrollbar-thumb {
+.filesGridContainer::-webkit-scrollbar-thumb {
   background-color: rgba(255,255,255,0.2);
   border-radius: 3px;
+}
+
+.filesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 2px;
+}
+
+.fileCard {
+  min-height: 0;
+  height: fit-content;
 }
 
 .conferenceContent {
@@ -104,4 +116,17 @@
   backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+  .filesGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 1200px) {
+  .filesGrid {
+    grid-template-columns: 1fr;
+  }
 }

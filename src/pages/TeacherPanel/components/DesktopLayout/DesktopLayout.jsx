@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { db } from '../../../../firebase';
+import { collection, getDocs, doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, addDoc, query, where, orderBy, limit } from 'firebase/firestore';
+import { db, storage } from '../../../../firebase';
+import { ref, getDownloadURL } from 'firebase/storage';
 import StudentItem from '../StudentItem/StudentItem';
 import FileItem from '../FileItem/FileItem';
 import MessageInput from '../MessageInput/MessageInput';
@@ -28,48 +29,76 @@ const DesktopLayout = () => {
         }));
         setStudents(studentsData);
 
-        // Fetch files - Enhanced to handle different Firebase structures
-        const filesSnapshot = await getDocs(collection(db, 'teacher-files'));
-        console.log('Files from Firebase:', filesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        
+        // Fetch files
+        const filesSnapshot = await getDocs(collection(db, 'files'));
         const filesData = filesSnapshot.docs.map(doc => {
           const fileData = doc.data();
-          console.log('Processing file:', fileData);
-          
-          // Handle different possible field names in Firebase
           return {
             id: doc.id,
-            name: fileData.name || fileData.fileName || fileData.filename || 'Unnamed File',
-            size: fileData.size || fileData.fileSize || 0,
-            uploadedAt: fileData.uploadedAt || fileData.createdAt || fileData.timestamp || new Date(),
-            url: fileData.url || fileData.downloadURL || fileData.fileUrl,
-            sharedWith: fileData.sharedWith || fileData.sharedTo || []
+            name: fileData.name || 'Unnamed File',
+            size: fileData.size || 0,
+            uploadedAt: fileData.createdAt || fileData.uploadedAt || new Date(),
+            url: fileData.url,
+            sharedWith: fileData.sharedWith || []
           };
         });
-        
-        console.log('Processed files:', filesData);
         setFiles(filesData);
       } catch (error) {
         console.error("Error loading data:", error);
-        
-        // Fallback sample data if Firebase fails
-        const sampleFiles = [
-          {
-            id: '1',
-            name: 'Quran_Study_Guide.pdf',
-            size: 2.4,
-            uploadedAt: '2024-01-15',
-            url: '#',
-            sharedWith: []
-          }
-        ];
-        setFiles(sampleFiles);
       }
     };
 
     fetchData();
   }, []);
 
+  // Real-time messages listener - FIXED
+  useEffect(() => {
+    if (messageSelectedStudents.length === 1) {
+      const studentId = messageSelectedStudents[0];
+      const conversationId = `teacher_${studentId}`;
+      
+      const messagesQuery = query(
+        collection(db, 'messages'),
+        where('conversationId', '==', conversationId),
+        orderBy('timestamp', 'desc'),
+        limit(20)
+      );
+
+      const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+        const messagesData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })).reverse(); // Reverse to show latest at bottom
+        
+        setMessages(messagesData);
+        
+        // Mark student messages as read
+        messagesData.forEach(message => {
+          if (message.sender !== 'teacher' && (!message.readBy || !message.readBy.teacher)) {
+            markMessageAsRead(message.id);
+          }
+        });
+      }, (error) => {
+        console.error('Messages listener error:', error);
+      });
+
+      return () => unsubscribe();
+    } else {
+      setMessages([]);
+    }
+  }, [messageSelectedStudents]);
+
+  const markMessageAsRead = async (messageId) => {
+    try {
+      await updateDoc(doc(db, 'messages', messageId), {
+        'readBy.teacher': new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+    }
+  };
+
+  // Rest of your existing functions remain the same...
   const handleMainStudentSelect = (studentId) => {
     setMainSelectedStudent(studentId);
     setMessageSelectedStudents([studentId]);
@@ -101,15 +130,13 @@ const DesktopLayout = () => {
 
   const toggleFileShare = async (fileId) => {
     if (!mainSelectedStudent) {
-      console.log('No student selected for sharing');
+      alert('Please select a student first');
       return;
     }
     
-    const fileRef = doc(db, 'teacher-files', fileId);
+    const fileRef = doc(db, 'files', fileId);
     const file = files.find(f => f.id === fileId);
     const isShared = file.sharedWith?.includes(mainSelectedStudent);
-
-    console.log(`Toggling share for file ${fileId} with student ${mainSelectedStudent}, currently shared: ${isShared}`);
 
     try {
       await updateDoc(fileRef, {
@@ -128,47 +155,83 @@ const DesktopLayout = () => {
             }
           : f
       ));
-      
-      console.log(`File ${fileId} share status updated successfully`);
     } catch (error) {
       console.error('Error updating file sharing:', error);
     }
   };
 
-  const handleFileClick = (file) => {
-    console.log('File clicked:', file);
-    if (file.url && file.url !== '#') {
-      window.open(file.url, '_blank');
-    } else {
-      console.warn('No valid URL for file:', file.name);
-      // You can add a fallback behavior here, like showing a message
-      alert(`File "${file.name}" doesn't have a valid download link.`);
+  const downloadAndOpenFile = async (file) => {
+    try {
+      if (file.url) {
+        const link = document.createElement('a');
+        link.href = file.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.download = file.name;
+        window.open(file.url, '_blank');
+        link.click();
+      } else {
+        alert(`Unable to open file "${file.name}". No valid download link.`);
+      }
+    } catch (error) {
+      console.error('Error opening file:', error);
+      alert(`Error opening file: ${error.message}`);
     }
   };
 
-  const handleSendMessage = (text) => {
+  const handleSendMessage = async (text) => {
     if (text.trim() && messageSelectedStudents.length > 0) {
-      const newMessage = {
-        id: Date.now(),
-        text,
-        sender: 'teacher',
-        timestamp: new Date(),
-        recipients: [...messageSelectedStudents]
-      };
-      setMessages(prev => [...prev, newMessage]);
+      try {
+        const messageData = {
+          text: text.trim(),
+          sender: 'teacher',
+          senderId: 'teacher',
+          senderName: 'Teacher',
+          recipients: messageSelectedStudents,
+          isGroupMessage: messageSelectedStudents.length > 1,
+          conversationId: messageSelectedStudents.length === 1 ? `teacher_${messageSelectedStudents[0]}` : `broadcast_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          type: 'text',
+          status: 'sent',
+          readBy: {},
+          deliveredTo: []
+        };
+
+        await addDoc(collection(db, 'messages'), messageData);
+        
+        // Update delivered status immediately for better UX
+        setTimeout(async () => {
+          try {
+            const messagesSnapshot = await getDocs(query(
+              collection(db, 'messages'), 
+              where('text', '==', text.trim()),
+              where('sender', '==', 'teacher'),
+              orderBy('timestamp', 'desc'),
+              limit(1)
+            ));
+            
+            if (!messagesSnapshot.empty) {
+              const latestDoc = messagesSnapshot.docs[0];
+              await updateDoc(doc(db, 'messages', latestDoc.id), {
+                status: 'delivered',
+                deliveredTo: messageSelectedStudents
+              });
+            }
+          } catch (error) {
+            console.error('Error updating delivery status:', error);
+          }
+        }, 500);
+
+      } catch (error) {
+        console.error('Error sending message:', error);
+        alert('Failed to send message');
+      }
     }
   };
-
-  const filteredMessages = messageSelectedStudents.length === 1 
-    ? messages.filter(msg => (
-        msg.sender === messageSelectedStudents[0] || 
-        (msg.sender === 'teacher' && msg.recipients.includes(messageSelectedStudents[0]))
-      ))
-    : [];
 
   return (
     <div className={styles.desktopLayout}>
-      {/* Students List Section - Fixed */}
+      {/* Students List Section */}
       <div className={`${styles.studentsSection} panel-section p-4`}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-white text-lg font-bold">Students</h2>
@@ -230,7 +293,7 @@ const DesktopLayout = () => {
         </div>
         <div className={styles.messagesContent}>
           <MessageHistory 
-            messages={filteredMessages} 
+            messages={messages} 
             students={students} 
           />
         </div>
@@ -242,33 +305,37 @@ const DesktopLayout = () => {
         />
       </div>
       
-      {/* Files Section - Updated with proper FileItem integration */}
+      {/* Files Section */}
       <div className={`${styles.filesSection} panel-section p-4`}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-white text-lg font-bold">Files</h2>
           <div className="text-white text-sm">
-            {mainSelectedStudent ? students.find(s => s.id === mainSelectedStudent)?.name : 'None selected'}
+            {mainSelectedStudent 
+              ? `Shared with ${students.find(s => s.id === mainSelectedStudent)?.name}` 
+              : 'All Files - Select student to share'}
           </div>
         </div>
-        <div className={`${styles.filesList} overflow-y-auto`}>
-          <div className="space-y-2 pr-2">
-            {files.length > 0 ? (
-              files.map(file => (
-                <FileItem 
-                  key={file.id}
-                  file={file}
-                  onShare={() => toggleFileShare(file.id)}
-                  isShared={mainSelectedStudent && file.sharedWith?.includes(mainSelectedStudent)}
-                  onClick={() => handleFileClick(file)}
-                />
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-400 mb-2">No files found</p>
-                <p className="text-gray-500 text-sm">Upload files in File Management</p>
-              </div>
-            )}
-          </div>
+        <div className={`${styles.filesGridContainer} overflow-y-auto`}>
+          {files.length > 0 ? (
+            <div className={styles.filesGrid}>
+              {files.map(file => (
+                <div key={file.id} className={styles.fileCard}>
+                  <FileItem 
+                    file={file}
+                    onShare={() => toggleFileShare(file.id)}
+                    isShared={mainSelectedStudent && file.sharedWith?.includes(mainSelectedStudent)}
+                    onClick={downloadAndOpenFile}
+                    showShareButton={!!mainSelectedStudent}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-400 mb-2">No files found</p>
+              <p className="text-gray-500 text-sm">Upload files in File Management</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

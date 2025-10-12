@@ -1,13 +1,15 @@
 .mobileTabs {
   padding-top: 60px;
   padding-bottom: 40px;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .mobileTab {
   display: none;
   height: calc(100vh - 100px);
   overflow-y: auto;
-  padding: 10px;
+  padding: 0;
 }
 
 .mobileTab.active {
@@ -17,40 +19,51 @@
 .mobileContent {
   height: calc(100% - 3rem);
   position: relative;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0.5rem;
+  margin: 0 10px;
   display: flex;
+  flex-direction: column;
 }
 
 .conferenceContent {
   align-items: center;
   justify-content: center;
+  padding: 1rem;
 }
 
 .mobileMessagesContainer {
- height: calc(100% - 80px); /* Reduced from original to make space for input */
-  padding: 0.5rem;
+  flex: 1;
   overflow-y: auto;
+  padding: 0.5rem 0;
 }
 
 .mobileStudentsList {
-  height: 100%;
+  flex: 1;
   overflow-y: auto;
+  padding: 0.5rem 0;
 }
 
 .filesContent {
-  align-items: flex-start;
-  padding: 1rem;
+  padding: 0;
   overflow-y: auto;
 }
 
 .filesGrid {
   display: grid;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
+  padding: 1rem;
   width: 100%;
 }
 
+.mobileFileCard {
+  width: 100%;
+}
+
+/* Footer Styles */
 .footer {
   background-color: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(8px);
@@ -94,11 +107,34 @@
   margin-bottom: 0.1rem;
   font-size: 1rem;
 }
+
 .messageInputWrapper {
   position: absolute;
   bottom: 10px;
   width: 100%;
   padding: 0 1rem;
   background-color: rgba(0, 0, 0, 0.5);
-  padding-bottom: env(safe-area-inset-bottom); /* For iOS notch devices */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 768px) {
+  .filesGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 0.75rem;
+  }
+  
+  .mobileFileCard {
+    min-height: 50px;
+  }
+}
+
+/* Ensure proper scrolling on mobile */
+.mobileTab.active {
+  -webkit-overflow-scrolling: touch;
+}
+
+.filesContent {
+  -webkit-overflow-scrolling: touch;
 }

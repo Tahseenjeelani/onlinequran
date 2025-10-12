@@ -64,7 +64,7 @@ const StudentManagement = () => {
       });
       setStudents([...students, { id: docRef.id, ...newStudent }]);
       setShowAddModal(false);
-      setNewStudent({ name: '', contact: '', age: '', password: '' });
+      setNewStudent({ name: '', username: '', contact: '', age: '', password: '' });
     } catch (error) {
       console.error('Error adding student:', error);
     }
@@ -151,6 +151,13 @@ const StudentManagement = () => {
                 />
                 <input 
                   type="text" 
+                  placeholder="Username"
+                  value={newStudent.username}
+                  onChange={(e) => setNewStudent({...newStudent, username: e.target.value})}
+                  className="w-full p-2 bg-black bg-opacity-30 text-white rounded"
+                />                
+                <input 
+                  type="text" 
                   placeholder="Email/Phone"
                   value={newStudent.contact}
                   onChange={(e) => setNewStudent({...newStudent, contact: e.target.value})}
@@ -229,6 +236,20 @@ const StudentManagement = () => {
                     />
                   ) : (
                     <div className="text-white p-2">{selectedStudent.name}</div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-gray-400 text-sm">Username</label>
+                  {editMode ? (
+                    <input 
+                      type="text" 
+                      value={selectedStudent.username}
+                      onChange={(e) => setSelectedStudent({...selectedStudent, username: e.target.value})}
+                      className="w-full p-2 bg-black bg-opacity-30 text-white rounded"
+                    />
+                  ) : (
+                    <div className="text-white p-2">{selectedStudent.username}</div>
                   )}
                 </div>
 

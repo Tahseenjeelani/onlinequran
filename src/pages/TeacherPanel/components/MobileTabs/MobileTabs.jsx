@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { db } from '../../../../firebase';
+import { collection, getDocs, doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, addDoc, query, where, orderBy, limit } from 'firebase/firestore';
+import { db, storage } from '../../../../firebase';
+import { ref, getDownloadURL } from 'firebase/storage';
 import StudentItem from '../StudentItem/StudentItem';
 import FileItem from '../FileItem/FileItem';
 import MessageInput from '../MessageInput/MessageInput';
@@ -24,24 +25,81 @@ const MobileTabs = () => {
       try {
         // Fetch students
         const studentsSnapshot = await getDocs(collection(db, 'students'));
-        setStudents(studentsSnapshot.docs.map(doc => ({
+        const studentsData = studentsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        })));
+        }));
+        setStudents(studentsData);
 
         // Fetch files
-        const filesSnapshot = await getDocs(collection(db, 'teacher-files'));
-        setFiles(filesSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })));
+        const filesSnapshot = await getDocs(collection(db, 'files'));
+        const filesData = filesSnapshot.docs.map(doc => {
+          const fileData = doc.data();
+          return {
+            id: doc.id,
+            name: fileData.name || 'Unnamed File',
+            size: fileData.size || 0,
+            uploadedAt: fileData.createdAt || fileData.uploadedAt || new Date(),
+            url: fileData.url,
+            sharedWith: fileData.sharedWith || []
+          };
+        });
+        setFiles(filesData);
       } catch (error) {
-        console.error("Error loading data:", error);
+        console.error("Error loading mobile data:", error);
       }
     };
     fetchData();
   }, []);
 
+  // Real-time messages listener for mobile - FIXED
+  useEffect(() => {
+    if (messageSelectedStudents.length === 1) {
+      const studentId = messageSelectedStudents[0];
+      const conversationId = `teacher_${studentId}`;
+      
+      const messagesQuery = query(
+        collection(db, 'messages'),
+        where('conversationId', '==', conversationId),
+        orderBy('timestamp', 'desc'),
+        limit(20)
+      );
+
+      const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+        const messagesData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })).reverse(); // Reverse to show latest at bottom
+        
+        setMessages(messagesData);
+        
+        // Mark student messages as read
+        messagesData.forEach(message => {
+          if (message.sender !== 'teacher' && (!message.readBy || !message.readBy.teacher)) {
+            markMessageAsRead(message.id);
+          }
+        });
+      }, (error) => {
+        console.error('Mobile messages listener error:', error);
+      });
+
+      return () => unsubscribe();
+    } else {
+      setMessages([]);
+    }
+  }, [messageSelectedStudents]);
+
+  const markMessageAsRead = async (messageId) => {
+    try {
+      await updateDoc(doc(db, 'messages', messageId), {
+        'readBy.teacher': new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+    }
+  };
+
+  // Rest of your existing functions...
   const handleMainStudentSelect = (studentId) => {
     setMainSelectedStudent(studentId);
     setMessageSelectedStudents([studentId]);
@@ -60,9 +118,12 @@ const MobileTabs = () => {
   };
 
   const toggleFileShare = async (fileId) => {
-    if (!mainSelectedStudent) return;
+    if (!mainSelectedStudent) {
+      alert('Please select a student first');
+      return;
+    }
     
-    const fileRef = doc(db, 'teacher-files', fileId);
+    const fileRef = doc(db, 'files', fileId);
     const file = files.find(f => f.id === fileId);
     const isShared = file.sharedWith?.includes(mainSelectedStudent);
 
@@ -88,15 +149,72 @@ const MobileTabs = () => {
     }
   };
 
-  const handleSendMessage = (text) => {
+  const downloadAndOpenFile = async (file) => {
+    try {
+      if (file.url) {
+        const link = document.createElement('a');
+        link.href = file.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.download = file.name;
+        window.open(file.url, '_blank');
+        link.click();
+      } else {
+        alert(`Unable to open file "${file.name}". No valid download link.`);
+      }
+    } catch (error) {
+      console.error('Error opening file:', error);
+      alert(`Error opening file: ${error.message}`);
+    }
+  };
+
+  const handleSendMessage = async (text) => {
     if (text.trim() && messageSelectedStudents.length > 0) {
-      setMessages(prev => [...prev, {
-        id: Date.now(),
-        text,
-        sender: 'teacher',
-        timestamp: new Date(),
-        recipients: [...messageSelectedStudents]
-      }]);
+      try {
+        const messageData = {
+          text: text.trim(),
+          sender: 'teacher',
+          senderId: 'teacher',
+          senderName: 'Teacher',
+          recipients: messageSelectedStudents,
+          isGroupMessage: messageSelectedStudents.length > 1,
+          conversationId: messageSelectedStudents.length === 1 ? `teacher_${messageSelectedStudents[0]}` : `broadcast_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          type: 'text',
+          status: 'sent',
+          readBy: {},
+          deliveredTo: []
+        };
+
+        await addDoc(collection(db, 'messages'), messageData);
+        
+        // Update delivered status immediately for better UX
+        setTimeout(async () => {
+          try {
+            const messagesSnapshot = await getDocs(query(
+              collection(db, 'messages'), 
+              where('text', '==', text.trim()),
+              where('sender', '==', 'teacher'),
+              orderBy('timestamp', 'desc'),
+              limit(1)
+            ));
+            
+            if (!messagesSnapshot.empty) {
+              const latestDoc = messagesSnapshot.docs[0];
+              await updateDoc(doc(db, 'messages', latestDoc.id), {
+                status: 'delivered',
+                deliveredTo: messageSelectedStudents
+              });
+            }
+          } catch (error) {
+            console.error('Error updating delivery status:', error);
+          }
+        }, 500);
+
+      } catch (error) {
+        console.error('Error sending message:', error);
+        alert('Failed to send message');
+      }
     }
   };
 
@@ -111,17 +229,12 @@ const MobileTabs = () => {
     }
   };
 
-  const filteredMessages = messageSelectedStudents.length === 1 
-    ? messages.filter(msg => (
-        msg.sender === messageSelectedStudents[0] || 
-        (msg.sender === 'teacher' && msg.recipients.includes(messageSelectedStudents[0]))
-      ))
-    : [];
-
   const renderSectionHeader = (title, selectedName) => (
     <div className="flex items-center justify-between mb-4 px-4 pt-4">
-      <h2 className="text-white text-heading">{title}</h2>
-      <div className="text-white font-medium">{selectedName || 'None selected'}</div>
+      <h2 className="text-white text-lg font-bold">{title}</h2>
+      <div className="text-white text-sm font-medium truncate max-w-[140px]">
+        {selectedName || 'None selected'}
+      </div>
     </div>
   );
 
@@ -135,13 +248,14 @@ const MobileTabs = () => {
         )}
         <div className={styles.mobileContent}>
           <div className={styles.mobileStudentsList}>
-            <div className="space-y-1 px-4 text-small">
+            <div className="space-y-2 px-4">
               {students.map(student => (
                 <StudentItem
                   key={student.id}
                   student={student}
                   isSelected={mainSelectedStudent === student.id}
                   onClick={() => handleMainStudentSelect(student.id)}
+                  showName={true}
                 />
               ))}
             </div>
@@ -157,10 +271,10 @@ const MobileTabs = () => {
         )}
         <div className={`${styles.mobileContent} ${styles.conferenceContent}`}>
           <div className="w-full px-4">
-            <p className="text-white text-subheading text-center">Jitsi Meet Conference will load here</p>
-            <div className="flex justify-center mt-4">
+            <p className="text-white text-center mb-4">Jitsi Meet Conference will load here</p>
+            <div className="flex justify-center">
               <button 
-                className={`px-4 py-2 rounded ${
+                className={`px-6 py-3 rounded text-base ${
                   isLiveSessionActive 
                     ? 'bg-red-500' 
                     : mainSelectedStudent 
@@ -186,9 +300,9 @@ const MobileTabs = () => {
             : null
         )}
         <div className={styles.mobileContent}>
-          <div className={styles.mobileMessagesContainer} style={{ height: 'calc(100% - 80px)' }}>
+          <div className={styles.mobileMessagesContainer}>
             <div className="px-4">
-              <MessageHistory messages={filteredMessages} students={students} />
+              <MessageHistory messages={messages} students={students} />
             </div>
           </div>
           <div className={styles.messageInputWrapper}>
@@ -197,7 +311,7 @@ const MobileTabs = () => {
               selectedStudents={messageSelectedStudents}
               onStudentSelect={handleMessageStudentSelect}
               onSend={handleSendMessage}
-              isMobile
+              isMobile={true}
             />
           </div>
         </div>
@@ -207,22 +321,32 @@ const MobileTabs = () => {
       <div className={`${styles.mobileTab} ${activeTab === 'files' ? styles.active : ''}`}>
         {renderSectionHeader(
           'Files',
-          mainSelectedStudent ? students.find(s => s.id === mainSelectedStudent)?.name : null
+          mainSelectedStudent 
+            ? `Shared with ${students.find(s => s.id === mainSelectedStudent)?.name}`
+            : 'All Files - Select student to share'
         )}
         <div className={`${styles.mobileContent} ${styles.filesContent}`}>
-          <div className="px-4">
-            <div className={styles.filesGrid}>
-              {files.map(file => (
-                <FileItem 
-                  key={file.id}
-                  name={file.name}
-                  isShared={mainSelectedStudent && file.sharedWith?.includes(mainSelectedStudent)}
-                  onShare={() => toggleFileShare(file.id)}
-                  onClick={() => window.open(file.url, '_blank')}
-                  isMobile
-                />
-              ))}
-            </div>
+          <div className="w-full">
+            {files.length > 0 ? (
+              <div className={styles.filesGrid}>
+                {files.map(file => (
+                  <div key={file.id} className={styles.mobileFileCard}>
+                    <FileItem 
+                      file={file}
+                      onShare={() => toggleFileShare(file.id)}
+                      isShared={mainSelectedStudent && file.sharedWith?.includes(mainSelectedStudent)}
+                      onClick={downloadAndOpenFile}
+                      showShareButton={!!mainSelectedStudent}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 px-4">
+                <p className="text-gray-400 mb-2">No files found</p>
+                <p className="text-gray-500 text-sm">Upload files in File Management</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

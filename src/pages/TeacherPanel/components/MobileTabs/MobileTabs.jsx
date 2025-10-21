@@ -322,7 +322,7 @@ const MobileTabs = () => {
         {renderSectionHeader(
           'Files',
           mainSelectedStudent 
-            ? `Shared with ${students.find(s => s.id === mainSelectedStudent)?.name}`
+            ? `${students.find(s => s.id === mainSelectedStudent)?.name}`
             : 'All Files - Select student to share'
         )}
         <div className={`${styles.mobileContent} ${styles.filesContent}`}>

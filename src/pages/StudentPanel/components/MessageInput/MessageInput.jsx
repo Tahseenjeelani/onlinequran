@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import styles from './MessageInput.module.css';
 
-const MessageInput = ({ isMobile = false }) => {
+const MessageInput = ({ onSend, isMobile = false }) => {
   const [message, setMessage] = useState('');
 
   const handleSend = () => {
-    if (message.trim()) {
-      // Send message to teacher (placeholder for actual logic)
-      console.log(`Message sent to teacher: ${message}`);
+    if (message.trim() && onSend) {
+      onSend(message);
       setMessage('');
     }
   };
@@ -20,7 +19,7 @@ const MessageInput = ({ isMobile = false }) => {
         onChange={(e) => setMessage(e.target.value)}
         onKeyPress={(e) => e.key === 'Enter' && handleSend()}
         className={styles.messageInput}
-        placeholder="Type your message..."
+        placeholder="Type your message to teacher..."
       />
       <div className={styles.messageButtons}>
         <button 

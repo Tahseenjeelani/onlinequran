@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, addDoc, query, where, orderBy, limit } from 'firebase/firestore';
-import { db, storage } from '../../../../firebase';
-import { ref, getDownloadURL } from 'firebase/storage';
+import { db } from '../../../../firebase'; 
 import StudentItem from '../StudentItem/StudentItem';
 import FileItem from '../FileItem/FileItem';
 import MessageInput from '../MessageInput/MessageInput';
 import MessageHistory from '../MessageHistory/MessageHistory';
+import FileViewer from '../FileViewer/FileViewer';
+import TeacherCall from '../../../../components/TeacherCall/TeacherCall';
+import { callService } from '../../../../services/callService';
+import { presenceService } from '../../../../services/presenceService';
 import styles from './DesktopLayout.module.css';
 
-const DesktopLayout = () => {
+const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
   const [students, setStudents] = useState([]);
   const [files, setFiles] = useState([]);
   const [mainSelectedStudent, setMainSelectedStudent] = useState(null);
@@ -16,6 +19,11 @@ const DesktopLayout = () => {
   const [messageSelectedStudents, setMessageSelectedStudents] = useState([]);
   const [isLiveSessionActive, setIsLiveSessionActive] = useState(false);
   const [messages, setMessages] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isFileViewerFullscreen, setIsFileViewerFullscreen] = useState(false);
+  const [activeCall, setActiveCall] = useState(null);
+  const [callRoomName, setCallRoomName] = useState(null);
+  const [studentStatus, setStudentStatus] = useState({});
 
   // Load students and files
   useEffect(() => {
@@ -51,7 +59,36 @@ const DesktopLayout = () => {
     fetchData();
   }, []);
 
-  // Real-time messages listener - FIXED
+  // Listen to student online status
+  useEffect(() => {
+    const statusUnsubscribes = students.map(student => 
+      presenceService.listenToStudentStatus(student.id, (status) => {
+        setStudentStatus(prev => ({
+          ...prev,
+          [student.id]: status
+        }));
+      })
+    );
+
+    return () => {
+      statusUnsubscribes.forEach(unsubscribe => unsubscribe());
+    };
+  }, [students]);
+
+  // Listen for active calls
+  useEffect(() => {
+    const unsubscribe = callService.listenForActiveCalls('teacher', (calls) => {
+      if (calls.length > 0) {
+        setActiveCall(calls[0]);
+      } else {
+        setActiveCall(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Real-time messages listener
   useEffect(() => {
     if (messageSelectedStudents.length === 1) {
       const studentId = messageSelectedStudents[0];
@@ -68,7 +105,7 @@ const DesktopLayout = () => {
         const messagesData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        })).reverse(); // Reverse to show latest at bottom
+        })).reverse();
         
         setMessages(messagesData);
         
@@ -98,7 +135,6 @@ const DesktopLayout = () => {
     }
   };
 
-  // Rest of your existing functions remain the same...
   const handleMainStudentSelect = (studentId) => {
     setMainSelectedStudent(studentId);
     setMessageSelectedStudents([studentId]);
@@ -107,16 +143,42 @@ const DesktopLayout = () => {
     }
   };
 
-  const handleToggleSession = () => {
-    if (isLiveSessionActive) {
-      setIsLiveSessionActive(false);
-    } else {
-      if (mainSelectedStudent) {
-        setSessionStudent(mainSelectedStudent);
-        setIsLiveSessionActive(true);
-      }
+const handleToggleSession = async () => {
+  if (isLiveSessionActive) {
+    // End session
+    if (activeCall) {
+      await callService.endCall(activeCall.id, 0);
     }
-  };
+    setIsLiveSessionActive(false);
+    setCallRoomName(null);
+    setActiveCall(null);
+  } else {
+    // Start session
+    if (mainSelectedStudent) {
+      try {
+        const student = students.find(s => s.id === mainSelectedStudent);
+        console.log('Starting session with:', student?.name);
+        
+        const call = await callService.initiateCall(mainSelectedStudent, 'teacher');
+        console.log('Created call with room:', call.roomName);
+        
+        setCallRoomName(call.roomName);
+        setIsLiveSessionActive(true);
+        setSessionStudent(mainSelectedStudent);
+        
+        // Force re-render of TeacherCall component
+        setTimeout(() => {
+          // This ensures the room name is passed to Jitsi
+        }, 100);
+      } catch (error) {
+        console.error('Error starting call:', error);
+        alert('Failed to start session. Error: ' + error.message);
+      }
+    } else {
+      alert('Please select a student first');
+    }
+  }
+};
 
   const handleMessageStudentSelect = (studentId) => {
     setMessageSelectedStudents(prev => {
@@ -160,23 +222,16 @@ const DesktopLayout = () => {
     }
   };
 
-  const downloadAndOpenFile = async (file) => {
-    try {
-      if (file.url) {
-        const link = document.createElement('a');
-        link.href = file.url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.download = file.name;
-        window.open(file.url, '_blank');
-        link.click();
-      } else {
-        alert(`Unable to open file "${file.name}". No valid download link.`);
-      }
-    } catch (error) {
-      console.error('Error opening file:', error);
-      alert(`Error opening file: ${error.message}`);
-    }
+  const handleFileSelect = (file) => {
+    setSelectedFile(file);
+  };
+
+  const toggleFileViewerFullscreen = () => {
+    setIsFileViewerFullscreen(!isFileViewerFullscreen);
+  };
+
+  const handleCloseFileViewer = () => {
+    setIsFileViewerFullscreen(false);
   };
 
   const handleSendMessage = async (text) => {
@@ -229,113 +284,175 @@ const DesktopLayout = () => {
     }
   };
 
+  // If in fullscreen mode, only show FileViewer
+  if (isFileViewerFullscreen && selectedFile) {
+    return (
+      <div className={styles.fullscreenContainer}>
+        <FileViewer 
+          file={selectedFile} 
+          isFullscreen={true}
+          onClose={handleCloseFileViewer}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.desktopLayout}>
       {/* Students List Section */}
-      <div className={`${styles.studentsSection} panel-section p-4`}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-white text-lg font-bold">Students</h2>
-          <div className="text-white text-sm truncate max-w-[120px]">
+      <div className={styles.studentsSection}>
+        <div className={styles.panelHeader}>
+          <h2 className={styles.panelTitle}>Students</h2>
+          <div className={styles.panelSubtitle}>
             {mainSelectedStudent ? students.find(s => s.id === mainSelectedStudent)?.name : 'None selected'}
           </div>
         </div>
-        <div className={`${styles.studentsList} overflow-y-auto`}>
-          <div className="space-y-1 pr-2">
+        <div className={styles.panelContent}>
+          <div className={styles.studentsList}>
             {students.map(student => (
               <StudentItem
                 key={student.id}
                 student={student}
                 isSelected={mainSelectedStudent === student.id}
                 onClick={() => handleMainStudentSelect(student.id)}
-                showName={true} 
+                showName={true}
+                status={studentStatus[student.id]}
               />
             ))}
           </div>
         </div>
       </div>
       
-      {/* Conference Section */}
-      <div className={`${styles.conferenceSection} panel-section p-4 ${isLiveSessionActive ? styles.disabledPanel : ''}`}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-white text-lg font-bold">Live Session</h2>
-          <div className="text-white text-sm">
+      {/* Live Session Section */}
+      <div className={`${styles.liveSessionSection} ${isLiveSessionActive ? styles.disabledPanel : ''}`}>
+        <div className={styles.panelHeader}>
+          <h2 className={styles.panelTitle}>Live Session</h2>
+          <div className={styles.panelSubtitle}>
             {sessionStudent ? students.find(s => s.id === sessionStudent)?.name : 'None selected'}
             {isLiveSessionActive && ' (Active)'}
           </div>
         </div>
-        <div className={styles.conferenceContent}>
-          <p className="text-white text-center">Jitsi Meet Conference will load here</p>
-          <button 
-            className={`mt-2 px-4 py-2 rounded text-sm ${
-              isLiveSessionActive 
-                ? 'bg-red-500' 
-                : mainSelectedStudent 
-                  ? 'bg-green-500' 
-                  : 'bg-gray-500 cursor-not-allowed'
-            } text-white`}
-            onClick={handleToggleSession}
-            disabled={!isLiveSessionActive && !mainSelectedStudent}
-          >
-            {isLiveSessionActive ? 'End Session' : 'Start Session'}
-          </button>
+        <div className={styles.panelContent}>
+          <TeacherCall 
+            student={sessionStudent ? students.find(s => s.id === sessionStudent) : null}
+            roomName={callRoomName}
+            onCallEnd={() => {
+              setIsLiveSessionActive(false);
+              setCallRoomName(null);
+              setActiveCall(null);
+             
+            }}
+            currentFile={selectedFile}
+          />
+          {!isLiveSessionActive && (
+            <div className={styles.sessionControls}>
+              <button 
+                className={`${styles.sessionButton} ${
+                  mainSelectedStudent 
+                    ? styles.startSession 
+                    : styles.disabledSession
+                }`}
+                onClick={handleToggleSession}
+                disabled={!mainSelectedStudent}
+              >
+                {isLiveSessionActive ? 'End Session' : 'Start Session'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* File View Section */}
+      <div className={styles.fileViewSection}>
+        <div className={styles.panelHeader}>
+          <h2 className={styles.panelTitle}>
+            {selectedFile ? `File Viewer - ${selectedFile.name.replace(/\.[^/.]+$/, "")}` : 'File Viewer'}
+          </h2>
+          {selectedFile && (
+            <button 
+              onClick={toggleFileViewerFullscreen}
+              className={styles.fullscreenButton}
+              title="Enter Fullscreen"
+            >
+              <i className="ri-fullscreen-line"></i>
+            </button>
+          )}
+        </div>
+        <div className={styles.panelContent}>
+          {selectedFile ? (
+            <FileViewer 
+              file={selectedFile} 
+              isFullscreen={false}
+              onClose={() => setSelectedFile(null)}
+            />
+          ) : (
+            <div className={styles.noFileSelected}>
+              <i className="ri-file-line text-4xl mb-2 text-gray-400"></i>
+              <p className="text-gray-400">Click on a file to view it here</p>
+            </div>
+          )}
         </div>
       </div>
       
       {/* Messages Section */}
-      <div className={`${styles.messagesSection} panel-section p-4`}>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-white text-base font-bold">Messages</h2>
-          <div className="text-white text-xs">
+      <div className={styles.messagesSection}>
+        <div className={styles.panelHeader}>
+          <h2 className={styles.panelTitle}>Messages</h2>
+          <div className={styles.panelSubtitle}>
             {messageSelectedStudents.length > 0 
               ? messageSelectedStudents.map(id => students.find(s => s.id === id)?.name).join(', ')
               : 'None selected'}
           </div>
         </div>
-        <div className={styles.messagesContent}>
-          <MessageHistory 
-            messages={messages} 
-            students={students} 
+        <div className={styles.panelContent}>
+          <div className={styles.messageHistory}>
+            <MessageHistory 
+              messages={messages} 
+              students={students} 
+            />
+          </div>
+          <MessageInput 
+            students={students}
+            selectedStudents={messageSelectedStudents}
+            onStudentSelect={handleMessageStudentSelect}
+            onSend={handleSendMessage}
           />
         </div>
-        <MessageInput 
-          students={students}
-          selectedStudents={messageSelectedStudents}
-          onStudentSelect={handleMessageStudentSelect}
-          onSend={handleSendMessage}
-        />
       </div>
       
       {/* Files Section */}
-      <div className={`${styles.filesSection} panel-section p-4`}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-white text-lg font-bold">Files</h2>
-          <div className="text-white text-sm">
+      <div className={styles.filesSection}>
+        <div className={styles.panelHeader}>
+          <h2 className={styles.panelTitle}>Files</h2>
+          <div className={styles.panelSubtitle}>
             {mainSelectedStudent 
               ? `Shared with ${students.find(s => s.id === mainSelectedStudent)?.name}` 
               : 'All Files - Select student to share'}
           </div>
         </div>
-        <div className={`${styles.filesGridContainer} overflow-y-auto`}>
-          {files.length > 0 ? (
-            <div className={styles.filesGrid}>
-              {files.map(file => (
-                <div key={file.id} className={styles.fileCard}>
-                  <FileItem 
-                    file={file}
-                    onShare={() => toggleFileShare(file.id)}
-                    isShared={mainSelectedStudent && file.sharedWith?.includes(mainSelectedStudent)}
-                    onClick={downloadAndOpenFile}
-                    showShareButton={!!mainSelectedStudent}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-400 mb-2">No files found</p>
-              <p className="text-gray-500 text-sm">Upload files in File Management</p>
-            </div>
-          )}
+        <div className={styles.panelContent}>
+          <div className={styles.filesGridContainer}>
+            {files.length > 0 ? (
+              <div className={styles.filesGrid}>
+                {files.map(file => (
+                  <div key={file.id} className={styles.fileCard}>
+                    <FileItem 
+                      file={file}
+                      onShare={() => toggleFileShare(file.id)}
+                      isShared={mainSelectedStudent && file.sharedWith?.includes(mainSelectedStudent)}
+                      onClick={() => handleFileSelect(file)}
+                      showShareButton={!!mainSelectedStudent}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className={styles.noFiles}>
+                <p className="text-gray-400 mb-2">No files found</p>
+                <p className="text-gray-500 text-sm">Upload files in File Management</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

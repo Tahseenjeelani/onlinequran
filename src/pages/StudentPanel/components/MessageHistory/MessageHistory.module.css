@@ -1,8 +1,8 @@
+/* MessageHistory.module.css */
 .container {
   flex: 1;
   overflow-y: auto;
   margin-bottom: 16px;
-  background: #4a5568;
   border-radius: 6px;
   padding: 8px;
 }
@@ -21,6 +21,19 @@
   gap: 6px;
 }
 
+.dateHeader {
+  text-align: center;
+  color: #a0aec0;
+  font-size: 11px;
+  font-weight: 600;
+  margin: 12px 0;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  align-self: center;
+  max-width: fit-content;
+}
+
 .message {
   max-width: 85%;
   border-radius: 12px;
@@ -34,6 +47,8 @@
   color: white;
   margin-left: 0;
   margin-right: auto;
+  margin-top: 2px;
+  margin-bottom: 2px;
 }
 
 .student {
@@ -42,6 +57,8 @@
   color: white;
   margin-left: auto;
   margin-right: 0;
+  margin-top: 2px;
+  margin-bottom: 2px;
 }
 
 .messageContent {

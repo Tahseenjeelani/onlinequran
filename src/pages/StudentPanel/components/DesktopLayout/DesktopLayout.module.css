@@ -1,91 +1,201 @@
 .desktopLayout {
   display: grid;
-  grid-template-columns: 70% 29.5%;
-  grid-template-rows: 70% 30%;
-  height: calc(100vh - 10px);
-  padding-top: 50px;
-  gap: 5px;
-  padding-bottom: 1px;
+  grid-template-columns: 25% 75%;
+  grid-template-rows: 35% 65%; /* 35% top, 65% bottom */
+  height: calc(100vh - 51px); /* Full height minus header */
+  gap: 2px;
+  padding: 8px;
   box-sizing: border-box;
+  margin-top: 50px; /* Space for header */
+  overflow: hidden; /* Prevent overall scrolling */
 }
 
-.conferenceContent {
+.desktopLayout.fullscreen {
+  grid-template-columns: 100% !important;
+  grid-template-rows: 100% !important;
+  margin-top: 0;
+  height: 100vh; /* Full viewport in fullscreen */
+}
+
+.desktopLayout.fullscreen .liveSession,
+.desktopLayout.fullscreen .messages,
+.desktopLayout.fullscreen .learningMaterials {
+  display: none !important;
+}
+
+.desktopLayout.fullscreen .fileViewer {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+}
+
+/* Live Session - Top Left (35% height × 25% width) */
+.liveSession {
   grid-column: 1;
   grid-row: 1;
-  flex-grow: 1;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Messages - Bottom Left (65% height × 25% width) */
+.messages {
+  grid-column: 1;
+  grid-row: 2;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%; /* Remove the 86% - use full grid row */
+}
+
+/* Learning Materials - Bottom Right (65% height × 75% width) */
+.learningMaterials {
+  grid-column: 2;
+  grid-row: 1;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(5px);
+  border: 0px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.50rem;
+  margin-top: 0; /* Remove margin top */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%; /* Remove the 70% - use full grid row */
+}
+
+/* File Viewer - Top Right (35% height × 75% width) */
+.fileViewer {
+  grid-column: 2;
+  grid-row: 2;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%; /* Remove the 130% - use full grid row */
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 1rem; /* Further reduced padding */
+  background: rgba(0, 0, 0, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  min-height: 35px; /* Slightly increased for better proportions */
+  flex-shrink: 0;
+}
+
+.panelTitle {
+  color: white;
+  font-weight: 500;
+  font-size: .75rem;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.panelContent {
+  flex: 1;
+  padding: 0.5rem; /* Slightly increased for better spacing */
+  overflow: auto;
+  min-height: 0;
+}
+
+.liveSession .panelContent {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(0, 0, 0, 0.5);
-  border-radius: 0.5rem;
-  height: 100%;
+  padding: 1rem;
 }
 
-.messagesPanel {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.messagesContent {
+.messages .panelContent {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+  padding: 0;
 }
 
 .messageHistory {
   flex: 1;
   overflow-y: auto;
+  padding: 0.75rem;
   min-height: 0;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(212, 175, 55, 0.5) rgba(0, 0, 0, 0.3);
-}
-
-.messageHistory::-webkit-scrollbar {
-  width: 6px;
-}
-
-.messageHistory::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 3px;
-}
-
-.messageHistory::-webkit-scrollbar-thumb {
-  background: rgba(212, 175, 55, 0.5);
-  border-radius: 3px;
-}
-
-.messageHistory::-webkit-scrollbar-thumb:hover {
-  background: rgba(212, 175, 55, 0.7);
 }
 
 .filesGrid {
-  grid-column: 1 / span 2;
-  grid-row: 2;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.3rem;
-  height: 80%;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: minmax(45px, auto); /* Slightly increased for better visibility */
+  gap: 0.4rem;
+  height: 35%; /* Use full height instead of 45% */
   overflow-y: auto;
-  padding: 0.4rem;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(212, 175, 55, 0.5) rgba(0, 0, 0, 0.3);
 }
 
-.filesGrid::-webkit-scrollbar {
+.fullscreenButton {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 0.70rem;
+  
+  
+  cursor: pointer;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.fullscreenButton:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.noFileSelected {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+}
+
+/* Scrollbars */
+.panelContent::-webkit-scrollbar {
   width: 6px;
 }
 
-.filesGrid::-webkit-scrollbar-track {
+.panelContent::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.3);
   border-radius: 3px;
 }
 
-.filesGrid::-webkit-scrollbar-thumb {
+.panelContent::-webkit-scrollbar-thumb {
   background: rgba(212, 175, 55, 0.5);
   border-radius: 3px;
 }
 
-.filesGrid::-webkit-scrollbar-thumb:hover {
-  background: rgba(212, 175, 55, 0.7);
+.messageHistory::-webkit-scrollbar {
+  width: 4px;
+}
+
+.filesGrid::-webkit-scrollbar {
+  width: 4px;
+}
+
+.panelSubtitle {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.65rem;
+  margin: 0;
+  line-height: 1.2;
+  text-align: right;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

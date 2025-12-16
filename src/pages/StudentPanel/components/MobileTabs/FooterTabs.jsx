@@ -2,28 +2,39 @@ import React from 'react';
 import styles from './MobileTabs.module.css';
 
 const FooterTabs = ({ activeTab, setActiveTab }) => {
-  const tabs = [
-    { id: 'conference', icon: 'ri-vidicon-line'},
-    { id: 'messages', icon: 'ri-chat-3-line'},
-    { id: 'files', icon: 'ri-folder-2-line'}
-  ];
-
   return (
-    <footer className={styles.footer}>
+    <div className={styles.footer}>
       <div className={styles.footerGrid}>
-        {tabs.map(tab => (
-          <div key={tab.id} className="w-full text-center">
-            <button
-              onClick={() => setActiveTab(tab.id)}
-              className={`${styles.tabButton} ${activeTab === tab.id ? styles.active : ''}`}
-            >
-              <i className={tab.icon}></i>
-              <span>{tab.label}</span>
-            </button>
-          </div>
-        ))}
+        <button
+          className={`${styles.tabButton} ${activeTab === 'conference' ? styles.active : ''}`}
+          onClick={() => setActiveTab('conference')}
+        >
+          <i className="ri-video-line"></i>
+          <span>Meeting</span>
+        </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'files' ? styles.active : ''}`}
+          onClick={() => setActiveTab('files')}
+        >
+          <i className="ri-file-line"></i>
+          <span>Files</span>
+        </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'messages' ? styles.active : ''}`}
+          onClick={() => setActiveTab('messages')}
+        >
+          <i className="ri-message-line"></i>
+          <span>Messages</span>
+        </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'fileViewer' ? styles.active : ''}`}
+          onClick={() => setActiveTab('fileViewer')}
+        >
+          <i className="ri-eye-line"></i>
+          <span>Viewer</span>
+        </button>
       </div>
-    </footer>
+    </div>
   );
 };
 

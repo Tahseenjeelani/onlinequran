@@ -13,7 +13,7 @@
 .messageInput {
   width: 100%;
   padding: 0.5rem;
-  border-radius: 0.25rem 0 0 0.25rem;
+  border-radius: 0.5rem 0 0 0.5rem;
   background-color: rgba(0, 0, 0, 0.3);
   color: white;
   border: none;
@@ -26,7 +26,7 @@
 .selectButton {
   background-color: rgba(0, 0, 0, 0.3);
   color: white;
-  padding: 0 0.5rem;
+  padding: 1 0.5rem;
   border: none;
   border-left: 1px solid rgba(255, 255, 255, 0.1);
   cursor: pointer;

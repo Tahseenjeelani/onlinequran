@@ -6,6 +6,7 @@ import StudentItem from '../StudentItem/StudentItem';
 import FileItem from '../FileItem/FileItem';
 import MessageInput from '../MessageInput/MessageInput';
 import MessageHistory from '../MessageHistory/MessageHistory';
+import FileViewer from '../FileViewer/FileViewer';
 import FooterTabs from './FooterTabs';
 import styles from './MobileTabs.module.css';
 
@@ -18,6 +19,8 @@ const MobileTabs = () => {
   const [messageSelectedStudents, setMessageSelectedStudents] = useState([]);
   const [isLiveSessionActive, setIsLiveSessionActive] = useState(false);
   const [messages, setMessages] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isFileViewerFullscreen, setIsFileViewerFullscreen] = useState(false);
 
   // Load students and files
   useEffect(() => {
@@ -98,6 +101,38 @@ const MobileTabs = () => {
       console.error('Error marking message as read:', error);
     }
   };
+
+  // File selection handler
+  const handleFileSelect = (file) => {
+    setSelectedFile(file);
+    setActiveTab('fileviewer'); // Automatically switch to file viewer tab
+  };
+
+  const handleCloseFileViewer = () => {
+    setSelectedFile(null);
+    setActiveTab('files'); // Switch back to files tab
+  };
+
+  const toggleFileViewerFullscreen = () => {
+    setIsFileViewerFullscreen(!isFileViewerFullscreen);
+  };
+
+  // If in fullscreen mode, only show FileViewer
+  if (isFileViewerFullscreen && selectedFile) {
+    return (
+      <div className={styles.fullscreenContainer}>
+        <FileViewer 
+          file={selectedFile} 
+          isFullscreen={true}
+          onClose={() => {
+            setIsFileViewerFullscreen(false);
+            handleCloseFileViewer();
+          }}
+          isMobile={true}
+        />
+      </div>
+    );
+  }
 
   // Rest of your existing functions...
   const handleMainStudentSelect = (studentId) => {
@@ -230,9 +265,9 @@ const MobileTabs = () => {
   };
 
   const renderSectionHeader = (title, selectedName) => (
-    <div className="flex items-center justify-between mb-4 px-4 pt-4">
-      <h2 className="text-white text-lg font-bold">{title}</h2>
-      <div className="text-white text-sm font-medium truncate max-w-[140px]">
+    <div className={styles.sectionHeader}>
+      <h2 className={styles.sectionTitle}>{title}</h2>
+      <div className={styles.sectionSubtitle}>
         {selectedName || 'None selected'}
       </div>
     </div>
@@ -248,7 +283,7 @@ const MobileTabs = () => {
         )}
         <div className={styles.mobileContent}>
           <div className={styles.mobileStudentsList}>
-            <div className="space-y-2 px-4">
+            <div className={styles.studentsContainer}>
               {students.map(student => (
                 <StudentItem
                   key={student.id}
@@ -270,17 +305,17 @@ const MobileTabs = () => {
           sessionStudent ? `${students.find(s => s.id === sessionStudent)?.name}${isLiveSessionActive ? ' (Active)' : ''}` : null
         )}
         <div className={`${styles.mobileContent} ${styles.conferenceContent}`}>
-          <div className="w-full px-4">
-            <p className="text-white text-center mb-4">Jitsi Meet Conference will load here</p>
-            <div className="flex justify-center">
+          <div className={styles.conferenceContainer}>
+            <p className={styles.conferenceText}>Jitsi Meet Conference will load here</p>
+            <div className={styles.conferenceButtonContainer}>
               <button 
-                className={`px-6 py-3 rounded text-base ${
+                className={`${styles.conferenceButton} ${
                   isLiveSessionActive 
-                    ? 'bg-red-500' 
+                    ? styles.endSession 
                     : mainSelectedStudent 
-                      ? 'bg-green-500' 
-                      : 'bg-gray-500 cursor-not-allowed'
-                } text-white`}
+                      ? styles.startSession 
+                      : styles.disabledSession
+                }`}
                 onClick={handleToggleSession}
                 disabled={!isLiveSessionActive && !mainSelectedStudent}
               >
@@ -301,7 +336,7 @@ const MobileTabs = () => {
         )}
         <div className={styles.mobileContent}>
           <div className={styles.mobileMessagesContainer}>
-            <div className="px-4">
+            <div className={styles.messagesHistory}>
               <MessageHistory messages={messages} students={students} />
             </div>
           </div>
@@ -326,7 +361,7 @@ const MobileTabs = () => {
             : 'All Files - Select student to share'
         )}
         <div className={`${styles.mobileContent} ${styles.filesContent}`}>
-          <div className="w-full">
+          <div className={styles.filesContainer}>
             {files.length > 0 ? (
               <div className={styles.filesGrid}>
                 {files.map(file => (
@@ -335,23 +370,56 @@ const MobileTabs = () => {
                       file={file}
                       onShare={() => toggleFileShare(file.id)}
                       isShared={mainSelectedStudent && file.sharedWith?.includes(mainSelectedStudent)}
-                      onClick={downloadAndOpenFile}
+                      onClick={() => handleFileSelect(file)}
                       showShareButton={!!mainSelectedStudent}
                     />
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 px-4">
-                <p className="text-gray-400 mb-2">No files found</p>
-                <p className="text-gray-500 text-sm">Upload files in File Management</p>
+              <div className={styles.noFiles}>
+                <p className={styles.noFilesText}>No files found</p>
+                <p className={styles.noFilesSubtext}>Upload files in File Management</p>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* File Viewer Tab - Only shows when a file is selected */}
+      {selectedFile && (
+        <div className={`${styles.mobileTab} ${activeTab === 'fileviewer' ? styles.active : ''}`}>
+          <div className={styles.fileViewerHeader}>
+            <h2 className={styles.fileViewerTitle}>
+              {selectedFile.name.replace(/\.[^/.]+$/, "").substring(0, 20)}
+              {selectedFile.name.length > 20 ? '...' : ''}
+            </h2>
+            <button 
+              onClick={toggleFileViewerFullscreen}
+              className={styles.fullscreenButton}
+              title="Enter Fullscreen"
+            >
+              <i className="ri-fullscreen-line"></i>
+            </button>
+          </div>
+          <div className={styles.mobileContent}>
+            <div className={styles.fileViewerContent}>
+              <FileViewer 
+                file={selectedFile} 
+                isFullscreen={false}
+                onClose={handleCloseFileViewer}
+                isMobile={true}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       
-      <FooterTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+      <FooterTabs 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        selectedFile={selectedFile} 
+      />
     </div>
   );
 };

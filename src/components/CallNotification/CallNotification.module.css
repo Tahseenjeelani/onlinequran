@@ -1,0 +1,62 @@
+.notificationOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.notification {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  max-width: 300px;
+  width: 90%;
+}
+
+.notificationIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.notificationContent h3 {
+  margin: 0 0 8px 0;
+  color: #333;
+}
+
+.notificationContent p {
+  margin: 0 0 20px 0;
+  color: #666;
+}
+
+.notificationActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.answerButton {
+  background: #10B981;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.declineButton {
+  background: #EF4444;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}

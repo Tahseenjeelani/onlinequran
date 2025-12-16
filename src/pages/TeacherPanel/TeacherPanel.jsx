@@ -3,22 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header/Header';
 import DesktopLayout from './components/DesktopLayout/DesktopLayout';
 import MobileTabs from './components/MobileTabs/MobileTabs';
+import { presenceService } from '../../services/presenceService';
 import styles from './TeacherPanel.module.css';
 
 const TeacherPanel = () => {
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
-  const [selectedStudents, setSelectedStudents] = useState([1]);
+  const [selectedStudents, setSelectedStudents] = useState([]);
   const navigate = useNavigate();
-
-  // Sample student data
-  const students = [
-    { id: 1, name: "Azfar", online: true, lastSeen: null },
-    { id: 2, name: "Huzaifa", online: true, lastSeen: null },
-    { id: 3, name: "Irha", online: true, lastSeen: null },
-    { id: 4, name: "Ayesha", online: true, lastSeen: null },
-    { id: 5, name: "Maria", online: false, lastSeen: "2h ago" },
-    { id: 6, name: "Mano", online: false, lastSeen: "yesterday" }
-  ];
 
   useEffect(() => {
     const handleResize = () => {
@@ -46,10 +37,12 @@ const TeacherPanel = () => {
       <Header showBackButton backUrl="/teacher-landing" />
       <main className="flex-grow">
         {isDesktop ? (
-          <DesktopLayout />
+          <DesktopLayout 
+            selectedStudents={selectedStudents}
+            onStudentSelect={handleStudentSelect}
+          />
         ) : (
           <MobileTabs 
-            students={students}
             selectedStudents={selectedStudents}
             onStudentSelect={handleStudentSelect}
           />

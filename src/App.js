@@ -1,7 +1,7 @@
 // src/App.js
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import './styles/global.css'; // Moved to top
+import './styles/global.css';
 import Home from './pages/Home/Home';
 import StudentLogin from './pages/StudentLogin/StudentLogin';
 import TeacherLogin from './pages/TeacherLogin/TeacherLogin';
@@ -12,8 +12,23 @@ import StudentManagement from './pages/StudentManagement/StudentManagement';
 import FileManagement from './pages/FileManagement/FileManagement';
 
 function App() {
-  return (
+  // Initialize preloaded files in localStorage
+  useEffect(() => {
+    const preloadedFiles = [
+      { name: '6-Kalmay.pdf', path: '/files/6-Kalmay.pdf' },
+      { name: 'Ayatul-Kursi-With-Urdu-and-English-Translation.jpg', path: '/files/Ayatul-Kursi-With-Urdu-and-English-Translation.jpg' },
+      { name: 'dua-e-qunoot Eng.jpg', path: '/files/dua-e-qunoot Eng.jpg' },
+      { name: 'dua-e-qunoot Urdu.jpg', path: '/files/dua-e-qunoot Urdu.jpg' },
+      { name: 'Eman-e-Mufassal.jpg', path: '/files/Eman-e-Mufassal.jpg' },
+      { name: 'Eman-e-Mujmal.jpg', path: '/files/Eman-e-Mujmal.jpg' }
+    ];
 
+    // Store in localStorage for easy access
+    localStorage.setItem('preloaded_files', JSON.stringify(preloadedFiles));
+    console.log('Preloaded files initialized:', preloadedFiles.length);
+  }, []);
+
+  return (
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />

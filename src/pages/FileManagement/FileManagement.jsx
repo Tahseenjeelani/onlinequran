@@ -1,3 +1,4 @@
+// src/pages/FileManagement/FileManagement.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header/Header';
@@ -122,7 +123,7 @@ const FileManagement = () => {
       if (file && file.url) {
         const fileRef = ref(storage, file.url);
         await deleteObject(fileRef).catch(err => {
-          console.warn("Storage delete error (might be already deleted):", err);
+          console.warn("Storage delete error:", err);
         });
       }
       

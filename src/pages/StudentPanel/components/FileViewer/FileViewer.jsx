@@ -1,8 +1,25 @@
+// SIMPLE FileViewer.jsx - Remove ALL that complexity
 import React, { useState } from 'react';
 import styles from './FileViewer.module.css';
 
 const FileViewer = ({ file, isMobile = false, isFullscreen = false, onClose }) => {
-  const [fitMode, setFitMode] = useState('vertical'); // 'vertical' or 'horizontal'
+  const [fitMode, setFitMode] = useState('vertical');
+
+  // Get the file URL - SIMPLE VERSION
+  const getFileUrl = () => {
+    // If file has 'path' field (local file), use it
+    if (file.path) {
+      return file.path; // Example: "/files/6-Kalmay.pdf"
+    }
+    
+    // If file has 'url' field (Firebase Storage), use it  
+    if (file.url) {
+      return file.url; // Example: "https://firebasestorage..."
+    }
+    
+    // If neither exists, can't open file
+    return null;
+  };
 
   const getFileType = () => {
     const extension = file.name.split('.').pop().toLowerCase();
@@ -40,63 +57,27 @@ const FileViewer = ({ file, isMobile = false, isFullscreen = false, onClose }) =
 
   const renderFileContent = () => {
     const fileType = getFileType();
+    const fileUrl = getFileUrl();
+    
+    if (!fileUrl) {
+      return <div>File not available</div>;
+    }
     
     switch(fileType) {
       case 'pdf':
-        return (
-          <iframe 
-            src={file.url} 
-            className={`${styles.fileFrame} ${isFullscreen ? styles.fullscreenFrame : ''}`}
-            title={file.name}
-          />
-        );
+        return <iframe src={fileUrl} className={styles.fileFrame} title={file.name} />;
       case 'jpg':
       case 'jpeg':
       case 'png':
-      case 'gif':
-        return (
-          <img 
-            src={file.url} 
-            alt={file.name}
-            className={`${styles.imageViewer} ${isFullscreen ? styles.fullscreenImage : ''} ${fitMode === 'horizontal' ? styles.fitHorizontal : ''}`}
-          />
-        );
-      case 'doc':
-      case 'docx':
-      case 'xls':
-      case 'xlsx':
-        return (
-          <iframe 
-            src={`https://docs.google.com/gview?url=${file.url}&embedded=true`}
-            className={`${styles.fileFrame} ${isFullscreen ? styles.fullscreenFrame : ''} ${fitMode === 'horizontal' ? styles.fitHorizontal : ''}`}
-            title={file.name}
-          />
-        );
+        return <img src={fileUrl} alt={file.name} className={styles.imageViewer} />;
       default:
-        return (
-          <div className={styles.unsupportedFile}>
-            <i className="ri-file-line text-4xl mb-2"></i>
-            <p>This file type cannot be previewed</p>
-            <p className="text-sm mt-2">File will open in external app</p>
-          </div>
-        );
+        return <div>File type not supported</div>;
     }
   };
 
-  const viewerClass = `${styles.fileViewer} ${isMobile ? styles.mobile : ''} ${isFullscreen ? styles.fullscreen : ''}`;
-
   return (
-    <div 
-      className={viewerClass}
-      onClick={handleScreenClick}
-    >
-      {/* Back button below header */}
-      {isFullscreen && (
-        <div className={styles.backButton}>
-          ←
-        </div>
-      )}
-      
+    <div className={styles.fileViewer} onClick={handleScreenClick}>
+      {isFullscreen && <div className={styles.backButton}>←</div>}
       <div className={styles.viewerContent}>
         {renderFileContent()}
       </div>

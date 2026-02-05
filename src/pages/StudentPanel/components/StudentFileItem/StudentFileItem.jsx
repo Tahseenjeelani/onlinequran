@@ -1,3 +1,4 @@
+// src/pages/StudentPanel/components/StudentFileItem/StudentFileItem.jsx
 import React from 'react';
 import styles from './StudentFileItem.module.css';
 
@@ -13,7 +14,6 @@ const StudentFileItem = ({ file, onClick }) => {
     }
   };
 
-  // Remove file extension from display name
   const getDisplayName = () => {
     return file.name.replace(/\.[^/.]+$/, "");
   };

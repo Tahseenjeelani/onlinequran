@@ -1,3 +1,4 @@
+// src/pages/TeacherPanel/components/DesktopLayout/DesktopLayout.jsx
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, addDoc, query, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../../../firebase'; 
@@ -39,15 +40,17 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
 
         // Fetch files
         const filesSnapshot = await getDocs(collection(db, 'files'));
-        const filesData = filesSnapshot.docs.map(doc => {
-          const fileData = doc.data();
-          return {
-            id: doc.id,
-            name: fileData.name || 'Unnamed File',
-            size: fileData.size || 0,
-            uploadedAt: fileData.createdAt || fileData.uploadedAt || new Date(),
-            url: fileData.url,
-            sharedWith: fileData.sharedWith || []
+       const filesData = filesSnapshot.docs.map(doc => {
+       const fileData = doc.data();
+       return {
+        id: doc.id,
+        name: fileData.name || 'Unnamed File',
+        size: fileData.size || 0,
+        uploadedAt: fileData.createdAt || fileData.uploadedAt || new Date(),
+        url: fileData.url,
+        path: fileData.path,  // ← ADD THIS LINE
+        type: fileData.type,   // ← ALSO ADD THIS (important for FileViewer)
+        sharedWith: fileData.sharedWith || []
           };
         });
         setFiles(filesData);
@@ -143,42 +146,33 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
     }
   };
 
-const handleToggleSession = async () => {
-  if (isLiveSessionActive) {
-    // End session
-    if (activeCall) {
-      await callService.endCall(activeCall.id, 0);
-    }
-    setIsLiveSessionActive(false);
-    setCallRoomName(null);
-    setActiveCall(null);
-  } else {
-    // Start session
-    if (mainSelectedStudent) {
-      try {
-        const student = students.find(s => s.id === mainSelectedStudent);
-        console.log('Starting session with:', student?.name);
-        
-        const call = await callService.initiateCall(mainSelectedStudent, 'teacher');
-        console.log('Created call with room:', call.roomName);
-        
-        setCallRoomName(call.roomName);
-        setIsLiveSessionActive(true);
-        setSessionStudent(mainSelectedStudent);
-        
-        // Force re-render of TeacherCall component
-        setTimeout(() => {
-          // This ensures the room name is passed to Jitsi
-        }, 100);
-      } catch (error) {
-        console.error('Error starting call:', error);
-        alert('Failed to start session. Error: ' + error.message);
+  const handleToggleSession = async () => {
+    if (isLiveSessionActive) {
+      // End session
+      if (activeCall) {
+        await callService.endCall(activeCall.id, 0);
       }
+      setIsLiveSessionActive(false);
+      setCallRoomName(null);
+      setActiveCall(null);
     } else {
-      alert('Please select a student first');
+      // Start session
+      if (mainSelectedStudent) {
+        try {
+          const student = students.find(s => s.id === mainSelectedStudent);
+          const call = await callService.initiateCall(mainSelectedStudent, 'teacher');
+          setCallRoomName(call.roomName);
+          setIsLiveSessionActive(true);
+          setSessionStudent(mainSelectedStudent);
+        } catch (error) {
+          console.error('Error starting call:', error);
+          alert('Failed to start session');
+        }
+      } else {
+        alert('Please select a student first');
+      }
     }
-  }
-};
+  };
 
   const handleMessageStudentSelect = (studentId) => {
     setMessageSelectedStudents(prev => {
@@ -253,33 +247,8 @@ const handleToggleSession = async () => {
         };
 
         await addDoc(collection(db, 'messages'), messageData);
-        
-        // Update delivered status immediately for better UX
-        setTimeout(async () => {
-          try {
-            const messagesSnapshot = await getDocs(query(
-              collection(db, 'messages'), 
-              where('text', '==', text.trim()),
-              where('sender', '==', 'teacher'),
-              orderBy('timestamp', 'desc'),
-              limit(1)
-            ));
-            
-            if (!messagesSnapshot.empty) {
-              const latestDoc = messagesSnapshot.docs[0];
-              await updateDoc(doc(db, 'messages', latestDoc.id), {
-                status: 'delivered',
-                deliveredTo: messageSelectedStudents
-              });
-            }
-          } catch (error) {
-            console.error('Error updating delivery status:', error);
-          }
-        }, 500);
-
       } catch (error) {
         console.error('Error sending message:', error);
-        alert('Failed to send message');
       }
     }
   };
@@ -340,7 +309,6 @@ const handleToggleSession = async () => {
               setIsLiveSessionActive(false);
               setCallRoomName(null);
               setActiveCall(null);
-             
             }}
             currentFile={selectedFile}
           />

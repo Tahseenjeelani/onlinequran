@@ -14,9 +14,8 @@ const FileItem = ({ file, onShare, onDelete, isShared, onClick, showShareButton 
     }
   };
 
-  // Remove file extension from display name
   const getDisplayName = () => {
-    return file.name.replace(/\.[^/.]+$/, ""); // Remove everything after the last dot
+    return file.name.replace(/\.[^/.]+$/, "");
   };
 
   const handleFileClick = (e) => {

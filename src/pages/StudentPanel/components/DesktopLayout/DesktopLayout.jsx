@@ -1,3 +1,4 @@
+// src/pages/StudentPanel/components/DesktopLayout/DesktopLayout.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, where, onSnapshot, orderBy, limit, addDoc } from 'firebase/firestore';
@@ -113,61 +114,8 @@ const DesktopLayout = () => {
     setCallRoomName(null);
   };
 
-  const handleFileClick = async (file) => {
+  const handleFileClick = (file) => {
     setCurrentFile(file);
-    
-    const isAvailableLocally = await checkLocalFile(file);
-    if (!isAvailableLocally) {
-      downloadFileToLocal(file);
-    }
-  };
-
-  const checkLocalFile = async (file) => {
-    try {
-      const localFileKey = `local_file_${file.id}`;
-      const localFileData = localStorage.getItem(localFileKey);
-      
-      if (localFileData) {
-        const fileInfo = JSON.parse(localFileData);
-        const fileAge = Date.now() - fileInfo.downloadedAt;
-        const maxAge = 30 * 24 * 60 * 60 * 1000;
-        return fileAge < maxAge;
-      }
-      return false;
-    } catch (error) {
-      console.error('Error checking local file:', error);
-      return false;
-    }
-  };
-
-  const downloadFileToLocal = async (file) => {
-    try {
-      const localFileKey = `local_file_${file.id}`;
-      const fileInfo = {
-        id: file.id,
-        name: file.name,
-        url: file.url,
-        downloadedAt: Date.now(),
-        localPath: `/local-files/${file.id}_${file.name}`
-      };
-      
-      localStorage.setItem(localFileKey, JSON.stringify(fileInfo));
-      console.log(`File ${file.name} cached locally`);
-    } catch (error) {
-      console.error('Error downloading file locally:', error);
-    }
-  };
-
-  const getFileUrl = (file) => {
-    const localFileKey = `local_file_${file.id}`;
-    const localFileData = localStorage.getItem(localFileKey);
-    
-    if (localFileData) {
-      const fileInfo = JSON.parse(localFileData);
-      return fileInfo.url;
-    }
-    
-    return file.url;
   };
 
   const handleSendMessage = async (text) => {
@@ -285,7 +233,7 @@ const DesktopLayout = () => {
         <div className={styles.panelContent}>
           {currentFile ? (
             <FileViewer 
-              file={{...currentFile, url: getFileUrl(currentFile)}} 
+              file={currentFile} 
               isFullscreen={isFileViewerFullscreen}
               onClose={toggleFileViewerFullscreen}
             />

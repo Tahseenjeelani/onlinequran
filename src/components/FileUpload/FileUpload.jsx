@@ -1,3 +1,4 @@
+// src/components/FileUpload/FileUpload.jsx
 import { useState } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc } from 'firebase/firestore';
@@ -30,7 +31,7 @@ const FileUpload = () => {
           await setDoc(doc(db, 'file-metadata', file.name), {
             name: file.name,
             type: file.type,
-            size: (file.size / (1024 * 1024)).toFixed(2), // MB
+            size: (file.size / (1024 * 1024)).toFixed(2),
             downloadURL,
             sharedWith: [],
             uploadedAt: new Date().toISOString()

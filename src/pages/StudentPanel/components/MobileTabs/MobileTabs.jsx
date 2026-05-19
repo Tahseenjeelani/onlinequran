@@ -7,6 +7,11 @@ import MessageHistory from '../MessageHistory/MessageHistory';
 import MessageInput from '../MessageInput/MessageInput';
 import FileViewer from '../FileViewer/FileViewer';
 import FooterTabs from './FooterTabs';
+import { useCall } from '../../../../context/CallContext';
+import { callService } from '../../../../services/callService';
+import { notificationService } from '../../../../services/notificationService';
+import CallNotification from '../../../../components/CallNotification/CallNotification';
+import GlobalCallOverlay from '../../../../components/GlobalCallOverlay/GlobalCallOverlay';
 import styles from './MobileTabs.module.css';
 
 const MobileTabs = () => {
@@ -17,6 +22,8 @@ const MobileTabs = () => {
   const [messages, setMessages] = useState([]);
   const [currentFile, setCurrentFile] = useState(null);
 
+  const { incomingCall, answerIncomingCall, declineIncomingCall, targetId, initializeSocket } = useCall();
+
   useEffect(() => {
     const currentStudent = JSON.parse(localStorage.getItem('currentStudent'));
     if (!currentStudent) {
@@ -24,6 +31,8 @@ const MobileTabs = () => {
       return;
     }
     setStudent(currentStudent);
+    
+    initializeSocket(currentStudent.id, 'student');
 
     // Load files shared with this student
     const filesQuery = query(
@@ -60,7 +69,19 @@ const MobileTabs = () => {
       unsubscribeFiles();
       unsubscribeMessages();
     };
-  }, [navigate]);
+  }, [navigate, initializeSocket]);
+
+  const handleAnswerCall = async () => {
+    if (incomingCall) {
+      await answerIncomingCall();
+    }
+  };
+
+  const handleDeclineCall = async () => {
+    if (incomingCall) {
+      declineIncomingCall();
+    }
+  };
 
   const handleFileClick = async (file) => {
     setCurrentFile(file);
@@ -156,14 +177,27 @@ const MobileTabs = () => {
       {/* Conference Tab */}
       <div className={`${styles.mobileTab} ${activeTab === 'conference' ? styles.active : ''}`}>
         <div className={styles.panelSection}>
-          <h2 className={styles.sectionTitle}>Live Session</h2>
-          <div className={styles.mobileContent}>
-            <div className="flex flex-col items-center justify-center h-full">
-              <p className="text-white text-center mb-4">Jitsi Meet Conference will load here</p>
-              <button className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg">
-                Join Session
-              </button>
-            </div>
+          <h2 className={styles.sectionTitle}>
+             {targetId ? 'Call Active' : incomingCall ? 'Incoming Call...' : 'Live Session'}
+          </h2>
+          <div className={styles.mobileContent} style={{ padding: targetId || incomingCall ? '0' : '16px', display: 'flex', flexDirection: 'column', height: '100%' }}>
+            {targetId ? (
+              <div style={{ flex: 1, position: 'relative', width: '100%', minHeight: '300px' }}>
+                <GlobalCallOverlay />
+              </div>
+            ) : incomingCall ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CallNotification
+                    call={incomingCall}
+                    onAnswer={handleAnswerCall}
+                    onDecline={handleDeclineCall}
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full">
+                {/* Strict Blank State */}
+              </div>
+            )}
           </div>
         </div>
       </div>

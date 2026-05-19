@@ -8,6 +8,8 @@ import MessageInput from '../MessageInput/MessageInput';
 import MessageHistory from '../MessageHistory/MessageHistory';
 import FileViewer from '../FileViewer/FileViewer';
 import FooterTabs from './FooterTabs';
+import { useCall } from '../../../../context/CallContext';
+import GlobalCallOverlay from '../../../../components/GlobalCallOverlay/GlobalCallOverlay';
 import styles from './MobileTabs.module.css';
 
 const MobileTabs = () => {
@@ -22,8 +24,11 @@ const MobileTabs = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isFileViewerFullscreen, setIsFileViewerFullscreen] = useState(false);
 
+  const { initiateCall, endCurrentCall, targetId, initializeSocket } = useCall();
+
   // Load students and files
   useEffect(() => {
+    initializeSocket('teacher', 'teacher');
     const fetchData = async () => {
       try {
         // Fetch students
@@ -253,13 +258,13 @@ const MobileTabs = () => {
     }
   };
 
-  const handleToggleSession = () => {
-    if (isLiveSessionActive) {
-      setIsLiveSessionActive(false);
+  const handleToggleSession = async () => {
+    if (targetId) {
+      endCurrentCall();
     } else {
       if (mainSelectedStudent) {
         setSessionStudent(mainSelectedStudent);
-        setIsLiveSessionActive(true);
+        await initiateCall(mainSelectedStudent, 'teacher');
       }
     }
   };
@@ -302,27 +307,33 @@ const MobileTabs = () => {
       <div className={`${styles.mobileTab} ${activeTab === 'conference' ? styles.active : ''}`}>
         {renderSectionHeader(
           'Live Session',
-          sessionStudent ? `${students.find(s => s.id === sessionStudent)?.name}${isLiveSessionActive ? ' (Active)' : ''}` : null
+          sessionStudent ? `${students.find(s => s.id === sessionStudent)?.name}${targetId ? ' (Active)' : ''}` : null
         )}
-        <div className={`${styles.mobileContent} ${styles.conferenceContent}`}>
-          <div className={styles.conferenceContainer}>
-            <p className={styles.conferenceText}>Jitsi Meet Conference will load here</p>
-            <div className={styles.conferenceButtonContainer}>
-              <button 
-                className={`${styles.conferenceButton} ${
-                  isLiveSessionActive 
-                    ? styles.endSession 
-                    : mainSelectedStudent 
-                      ? styles.startSession 
-                      : styles.disabledSession
-                }`}
-                onClick={handleToggleSession}
-                disabled={!isLiveSessionActive && !mainSelectedStudent}
-              >
-                {isLiveSessionActive ? 'End Session' : 'Start Session'}
-              </button>
+        <div className={`${styles.mobileContent} ${styles.conferenceContent}`} style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: targetId ? 0 : '16px' }}>
+          {targetId ? (
+            <div style={{ flex: 1, position: 'relative', width: '100%', minHeight: '300px' }}>
+              <GlobalCallOverlay />
             </div>
-          </div>
+          ) : (
+            <div className={styles.conferenceContainer}>
+              <p className={styles.conferenceText}>Ready to start</p>
+              <div className={styles.conferenceButtonContainer}>
+                <button 
+                  className={`${styles.conferenceButton} ${
+                    targetId 
+                      ? styles.endSession 
+                      : mainSelectedStudent 
+                        ? styles.startSession 
+                        : styles.disabledSession
+                  }`}
+                  onClick={handleToggleSession}
+                  disabled={!targetId && !mainSelectedStudent}
+                >
+                  {targetId ? 'End Session' : 'Start Session'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       

@@ -7,11 +7,12 @@ import MessageInput from '../MessageInput/MessageInput';
 import StudentFileItem from '../StudentFileItem/StudentFileItem';
 import MessageHistory from '../MessageHistory/MessageHistory';
 import FileViewer from '../FileViewer/FileViewer';
-import StudentCall from '../../../../components/StudentCall/StudentCall';
 import CallNotification from '../../../../components/CallNotification/CallNotification';
 import { callService } from '../../../../services/callService';
 import { notificationService } from '../../../../services/notificationService';
 import { presenceService } from '../../../../services/presenceService';
+import { useCall } from '../../../../context/CallContext'; // Import useCall
+import GlobalCallOverlay from '../../../../components/GlobalCallOverlay/GlobalCallOverlay';
 import styles from './DesktopLayout.module.css';
 
 const DesktopLayout = () => {
@@ -21,9 +22,9 @@ const DesktopLayout = () => {
   const [messages, setMessages] = useState([]);
   const [currentFile, setCurrentFile] = useState(null);
   const [isFileViewerFullscreen, setIsFileViewerFullscreen] = useState(false);
-  const [incomingCall, setIncomingCall] = useState(null);
-  const [isInCall, setIsInCall] = useState(false);
-  const [callRoomName, setCallRoomName] = useState(null);
+
+  // Global Call Context
+  const { incomingCall, answerIncomingCall, declineIncomingCall, isCallActive, targetId, initializeSocket } = useCall();
 
   useEffect(() => {
     const currentStudent = JSON.parse(localStorage.getItem('currentStudent'));
@@ -35,6 +36,9 @@ const DesktopLayout = () => {
 
     // Update online status
     presenceService.updateStudentStatus(currentStudent.id, 'online');
+    
+    // Register socket globally
+    initializeSocket(currentStudent.id, 'student');
 
     // Load files shared with this student
     const filesQuery = query(
@@ -75,43 +79,18 @@ const DesktopLayout = () => {
         presenceService.updateStudentStatus(currentStudent.id, 'offline');
       }
     };
-  }, [navigate]);
-
-  // Listen for incoming calls
-  useEffect(() => {
-    if (!student) return;
-
-    const unsubscribe = callService.listenForCalls(student.id, (call) => {
-      setIncomingCall(call);
-      setCallRoomName(call.roomName);
-      
-      // Add notification to messages
-      notificationService.addCallNotification(student.id, 'initiated', call.callId, call.roomName);
-    });
-
-    return () => unsubscribe();
-  }, [student]);
+  }, [navigate, initializeSocket]);
 
   const handleAnswerCall = async () => {
     if (incomingCall) {
-      await callService.answerCall(incomingCall.callId);
-      setIsInCall(true);
-      setIncomingCall(null);
+      await answerIncomingCall();
     }
   };
 
   const handleDeclineCall = async () => {
     if (incomingCall) {
-      await callService.markMissedCall(incomingCall.callId);
-      notificationService.addCallNotification(student.id, 'missed', incomingCall.callId);
-      setIncomingCall(null);
-      setCallRoomName(null);
+      declineIncomingCall();
     }
-  };
-
-  const handleCallEnd = () => {
-    setIsInCall(false);
-    setCallRoomName(null);
   };
 
   const handleFileClick = (file) => {
@@ -153,33 +132,28 @@ const DesktopLayout = () => {
 
   return (
     <div className={`${styles.desktopLayout} ${isFileViewerFullscreen ? styles.fullscreen : ''}`}>
-      {/* Live Session - Top Left */}
       <div className={styles.liveSession}>
         <div className={styles.panelHeader}>
           <h2 className={styles.panelTitle}>Live Session</h2>
           <div className={styles.panelSubtitle}>
-            {isInCall ? 'In Call' : 'Waiting for teacher'}
+            {targetId ? 'Call Active' : incomingCall ? 'Incoming Call...' : ''}
           </div>
         </div>
-        <div className={styles.panelContent}>
-          <StudentCall 
-            studentId={student.id}
-            roomName={callRoomName}
-            onCallStart={() => setIsInCall(true)}
-            onCallEnd={handleCallEnd}
-          />
+        <div className={styles.panelContent} style={{ padding: targetId || incomingCall ? '0' : '20px', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: (targetId || incomingCall) ? 'transparent' : 'transparent' }}>
+          {targetId ? (
+            <div style={{ flex: 1, position: 'relative', width: '100%' }}>
+              <GlobalCallOverlay />
+            </div>
+          ) : incomingCall ? (
+            <CallNotification
+              call={incomingCall}
+              onAnswer={handleAnswerCall}
+              onDecline={handleDeclineCall}
+            />
+          ) : null}
         </div>
-        
-        {/* Incoming Call Notification */}
-        {incomingCall && !isInCall && (
-          <CallNotification 
-            call={incomingCall}
-            onAnswer={handleAnswerCall}
-            onDecline={handleDeclineCall}
-          />
-        )}
       </div>
-      
+
       {/* Messages - Bottom Left */}
       <div className={styles.messages}>
         <div className={styles.panelHeader}>
@@ -192,7 +166,7 @@ const DesktopLayout = () => {
           <MessageInput onSend={handleSendMessage} />
         </div>
       </div>
-      
+
       {/* Learning Materials - Bottom Right */}
       <div className={styles.learningMaterials}>
         <div className={styles.panelHeader}>
@@ -221,7 +195,7 @@ const DesktopLayout = () => {
             {currentFile ? `File Viewer - ${currentFile.name.replace(/\.[^/.]+$/, "")}` : 'File Viewer'}
           </h2>
           {currentFile && (
-            <button 
+            <button
               onClick={toggleFileViewerFullscreen}
               className={styles.fullscreenButton}
               title={isFileViewerFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
@@ -232,8 +206,8 @@ const DesktopLayout = () => {
         </div>
         <div className={styles.panelContent}>
           {currentFile ? (
-            <FileViewer 
-              file={currentFile} 
+            <FileViewer
+              file={currentFile}
               isFullscreen={isFileViewerFullscreen}
               onClose={toggleFileViewerFullscreen}
             />

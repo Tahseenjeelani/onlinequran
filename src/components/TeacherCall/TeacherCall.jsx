@@ -1,43 +1,27 @@
-import React, { useRef } from 'react';
-import { JitsiMeeting } from '@jitsi/react-sdk';
-import { jitsiConfig } from '../../config/jitsiConfig';
+import React, { useRef, useEffect } from 'react';
+import { useWebRTC } from '../../hooks/useWebRTC';
 import styles from './TeacherCall.module.css';
 
 const TeacherCall = ({ student, roomName, onCallEnd, currentFile }) => {
-  const apiRef = useRef();
+  const { localStream, remoteStream, endCall } = useWebRTC(roomName, 'teacher', true);
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
 
-  const handleApiReady = (api) => {
-    apiRef.current = api;
-    
-    // Teacher automatically joins without prompting
-    api.executeCommand('toggleVideo'); // Camera off
-    
-    api.addEventListener('videoConferenceJoined', () => {
-      console.log('Teacher joined conference');
-      
-      // Set teacher as moderator
-      try {
-        api.executeCommand('password', 'moderator123');
-        api.executeCommand('displayName', 'Teacher');
-      } catch (error) {
-        console.log('Moderator commands not available');
-      }
-    });
-
-    // Handle screen sharing
-    api.addEventListener('screenSharingStatusChanged', (sharingStatus) => {
-      if (sharingStatus.on && currentFile) {
-        console.log('Screen sharing started with file:', currentFile);
-      }
-    });
-  };
-
-  const handleReadyToClose = () => {
-    console.log('Call ended');
-    if (apiRef.current) {
-      apiRef.current.dispose();
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
     }
-    onCallEnd();
+  }, [localStream]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
+  const handleEndCall = () => {
+    endCall();
+    if (onCallEnd) onCallEnd();
   };
 
   if (!roomName) {
@@ -49,23 +33,63 @@ const TeacherCall = ({ student, roomName, onCallEnd, currentFile }) => {
   }
 
   return (
-    <div className={styles.teacherCall}>
-      <JitsiMeeting
-        roomName={roomName}
-        configOverwrite={{
-          ...jitsiConfig.options.configOverwrite,
-          startWithVideoMuted: true,
-        }}
-        interfaceConfigOverwrite={jitsiConfig.options.interfaceConfigOverwrite}
-        onApiReady={handleApiReady}
-        getIFrameRef={(iframe) => {
-          iframe.style.height = '100%';
-          iframe.style.width = '100%';
-          iframe.style.borderRadius = '8px';
-          iframe.style.border = 'none';
-        }}
-        onReadyToClose={handleReadyToClose}
+    <div className={styles.teacherCall} style={{ position: 'relative' }}>
+      {/* Remote Video (Full Size) */}
+      <video
+        ref={remoteVideoRef}
+        autoPlay
+        playsInline
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
       />
+      {!remoteStream && (
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'white' }}>
+          Waiting for student...
+        </div>
+      )}
+
+      {/* Local Video (PiP) */}
+      <video
+        ref={localVideoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{
+          position: 'absolute',
+          bottom: '20px',
+          right: '20px',
+          width: '150px',
+          height: '100px',
+          objectFit: 'cover',
+          borderRadius: '8px',
+          border: '2px solid white',
+          backgroundColor: '#333'
+        }}
+      />
+
+      {/* Controls */}
+      <div style={{
+        position: 'absolute',
+        bottom: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        display: 'flex',
+        gap: '10px'
+      }}>
+        <button
+          onClick={handleEndCall}
+          style={{
+            backgroundColor: '#ff4444',
+            color: 'white',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          End Call
+        </button>
+      </div>
     </div>
   );
 };

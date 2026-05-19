@@ -11,6 +11,10 @@ import StudentPanel from './pages/StudentPanel/StudentPanel';
 import StudentManagement from './pages/StudentManagement/StudentManagement';
 import FileManagement from './pages/FileManagement/FileManagement';
 
+import { CallProvider } from './context/CallContext';
+import GlobalCallOverlay from './components/GlobalCallOverlay/GlobalCallOverlay';
+import CallDebugLog from './components/CallDebugLog/CallDebugLog';
+
 function App() {
   // Initialize preloaded files in localStorage
   useEffect(() => {
@@ -29,18 +33,21 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/student-login" element={<StudentLogin />} />
-        <Route path="/teacher-login" element={<TeacherLogin />} />
-        <Route path="/teacher-landing" element={<TeacherLanding />} />
-        <Route path="/teacher-panel" element={<TeacherPanel />} />
-        <Route path="/student-panel" element={<StudentPanel />} />
-        <Route path="/student-management" element={<StudentManagement />} />
-        <Route path="/file-management" element={<FileManagement />} />
-      </Routes>
-    </Router>
+    <CallProvider>
+      <CallDebugLog />
+      <Router>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/student-login" element={<StudentLogin />} />
+          <Route path="/teacher-login" element={<TeacherLogin />} />
+          <Route path="/teacher-landing" element={<TeacherLanding />} />
+          <Route path="/teacher-panel" element={<TeacherPanel />} />
+          <Route path="/student-panel" element={<StudentPanel />} />
+          <Route path="/student-management" element={<StudentManagement />} />
+          <Route path="/file-management" element={<FileManagement />} />
+        </Routes>
+      </Router>
+    </CallProvider>
   );
 }
 

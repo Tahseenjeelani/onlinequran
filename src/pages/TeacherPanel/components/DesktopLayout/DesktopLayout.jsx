@@ -1,30 +1,34 @@
 // src/pages/TeacherPanel/components/DesktopLayout/DesktopLayout.jsx
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, updateDoc, arrayUnion, arrayRemove, onSnapshot, addDoc, query, where, orderBy, limit } from 'firebase/firestore';
-import { db } from '../../../../firebase'; 
+import { db } from '../../../../firebase';
 import StudentItem from '../StudentItem/StudentItem';
 import FileItem from '../FileItem/FileItem';
 import MessageInput from '../MessageInput/MessageInput';
 import MessageHistory from '../MessageHistory/MessageHistory';
 import FileViewer from '../FileViewer/FileViewer';
-import TeacherCall from '../../../../components/TeacherCall/TeacherCall';
-import { callService } from '../../../../services/callService';
+// TeacherCall removed, using Global Overlay
 import { presenceService } from '../../../../services/presenceService';
+import { useCall } from '../../../../context/CallContext'; // Import useCall
+import GlobalCallOverlay from '../../../../components/GlobalCallOverlay/GlobalCallOverlay';
 import styles from './DesktopLayout.module.css';
 
 const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
   const [students, setStudents] = useState([]);
   const [files, setFiles] = useState([]);
   const [mainSelectedStudent, setMainSelectedStudent] = useState(null);
-  const [sessionStudent, setSessionStudent] = useState(null);
   const [messageSelectedStudents, setMessageSelectedStudents] = useState([]);
-  const [isLiveSessionActive, setIsLiveSessionActive] = useState(false);
   const [messages, setMessages] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isFileViewerFullscreen, setIsFileViewerFullscreen] = useState(false);
-  const [activeCall, setActiveCall] = useState(null);
-  const [callRoomName, setCallRoomName] = useState(null);
   const [studentStatus, setStudentStatus] = useState({});
+
+  // Global Call Context
+  const { initiateCall, endCurrentCall, isCallActive, targetId, initializeSocket } = useCall();
+
+  useEffect(() => {
+    initializeSocket('teacher', 'teacher');
+  }, [initializeSocket]);
 
   // Load students and files
   useEffect(() => {
@@ -40,17 +44,17 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
 
         // Fetch files
         const filesSnapshot = await getDocs(collection(db, 'files'));
-       const filesData = filesSnapshot.docs.map(doc => {
-       const fileData = doc.data();
-       return {
-        id: doc.id,
-        name: fileData.name || 'Unnamed File',
-        size: fileData.size || 0,
-        uploadedAt: fileData.createdAt || fileData.uploadedAt || new Date(),
-        url: fileData.url,
-        path: fileData.path,  // ← ADD THIS LINE
-        type: fileData.type,   // ← ALSO ADD THIS (important for FileViewer)
-        sharedWith: fileData.sharedWith || []
+        const filesData = filesSnapshot.docs.map(doc => {
+          const fileData = doc.data();
+          return {
+            id: doc.id,
+            name: fileData.name || 'Unnamed File',
+            size: fileData.size || 0,
+            uploadedAt: fileData.createdAt || fileData.uploadedAt || new Date(),
+            url: fileData.url,
+            path: fileData.path,  // ← ADD THIS LINE
+            type: fileData.type,   // ← ALSO ADD THIS (important for FileViewer)
+            sharedWith: fileData.sharedWith || []
           };
         });
         setFiles(filesData);
@@ -64,7 +68,7 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
 
   // Listen to student online status
   useEffect(() => {
-    const statusUnsubscribes = students.map(student => 
+    const statusUnsubscribes = students.map(student =>
       presenceService.listenToStudentStatus(student.id, (status) => {
         setStudentStatus(prev => ({
           ...prev,
@@ -78,25 +82,12 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
     };
   }, [students]);
 
-  // Listen for active calls
-  useEffect(() => {
-    const unsubscribe = callService.listenForActiveCalls('teacher', (calls) => {
-      if (calls.length > 0) {
-        setActiveCall(calls[0]);
-      } else {
-        setActiveCall(null);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
   // Real-time messages listener
   useEffect(() => {
     if (messageSelectedStudents.length === 1) {
       const studentId = messageSelectedStudents[0];
       const conversationId = `teacher_${studentId}`;
-      
+
       const messagesQuery = query(
         collection(db, 'messages'),
         where('conversationId', '==', conversationId),
@@ -109,9 +100,9 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
           id: doc.id,
           ...doc.data()
         })).reverse();
-        
+
         setMessages(messagesData);
-        
+
         // Mark student messages as read
         messagesData.forEach(message => {
           if (message.sender !== 'teacher' && (!message.readBy || !message.readBy.teacher)) {
@@ -141,33 +132,16 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
   const handleMainStudentSelect = (studentId) => {
     setMainSelectedStudent(studentId);
     setMessageSelectedStudents([studentId]);
-    if (!isLiveSessionActive) {
-      setSessionStudent(studentId);
-    }
   };
 
   const handleToggleSession = async () => {
-    if (isLiveSessionActive) {
+    if (targetId) {
       // End session
-      if (activeCall) {
-        await callService.endCall(activeCall.id, 0);
-      }
-      setIsLiveSessionActive(false);
-      setCallRoomName(null);
-      setActiveCall(null);
+      endCurrentCall();
     } else {
       // Start session
       if (mainSelectedStudent) {
-        try {
-          const student = students.find(s => s.id === mainSelectedStudent);
-          const call = await callService.initiateCall(mainSelectedStudent, 'teacher');
-          setCallRoomName(call.roomName);
-          setIsLiveSessionActive(true);
-          setSessionStudent(mainSelectedStudent);
-        } catch (error) {
-          console.error('Error starting call:', error);
-          alert('Failed to start session');
-        }
+        await initiateCall(mainSelectedStudent, 'teacher');
       } else {
         alert('Please select a student first');
       }
@@ -189,26 +163,26 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
       alert('Please select a student first');
       return;
     }
-    
+
     const fileRef = doc(db, 'files', fileId);
     const file = files.find(f => f.id === fileId);
     const isShared = file.sharedWith?.includes(mainSelectedStudent);
 
     try {
       await updateDoc(fileRef, {
-        sharedWith: isShared 
+        sharedWith: isShared
           ? arrayRemove(mainSelectedStudent)
           : arrayUnion(mainSelectedStudent)
       });
 
-      setFiles(files.map(f => 
-        f.id === fileId 
+      setFiles(files.map(f =>
+        f.id === fileId
           ? {
-              ...f,
-              sharedWith: isShared
-                ? f.sharedWith.filter(id => id !== mainSelectedStudent)
-                : [...(f.sharedWith || []), mainSelectedStudent]
-            }
+            ...f,
+            sharedWith: isShared
+              ? f.sharedWith.filter(id => id !== mainSelectedStudent)
+              : [...(f.sharedWith || []), mainSelectedStudent]
+          }
           : f
       ));
     } catch (error) {
@@ -257,8 +231,8 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
   if (isFileViewerFullscreen && selectedFile) {
     return (
       <div className={styles.fullscreenContainer}>
-        <FileViewer 
-          file={selectedFile} 
+        <FileViewer
+          file={selectedFile}
           isFullscreen={true}
           onClose={handleCloseFileViewer}
         />
@@ -291,45 +265,37 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
           </div>
         </div>
       </div>
-      
+
       {/* Live Session Section */}
-      <div className={`${styles.liveSessionSection} ${isLiveSessionActive ? styles.disabledPanel : ''}`}>
+      <div className={styles.liveSessionSection}>
         <div className={styles.panelHeader}>
           <h2 className={styles.panelTitle}>Live Session</h2>
           <div className={styles.panelSubtitle}>
-            {sessionStudent ? students.find(s => s.id === sessionStudent)?.name : 'None selected'}
-            {isLiveSessionActive && ' (Active)'}
+            {targetId ? 'Call Active (See Overlay)' : 'Ready to start'}
           </div>
         </div>
-        <div className={styles.panelContent}>
-          <TeacherCall 
-            student={sessionStudent ? students.find(s => s.id === sessionStudent) : null}
-            roomName={callRoomName}
-            onCallEnd={() => {
-              setIsLiveSessionActive(false);
-              setCallRoomName(null);
-              setActiveCall(null);
-            }}
-            currentFile={selectedFile}
-          />
-          {!isLiveSessionActive && (
+        <div className={styles.panelContent} style={{ padding: targetId ? '0' : '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+          {targetId ? (
+            <div style={{ flex: 1, position: 'relative', width: '100%' }}>
+              <GlobalCallOverlay />
+            </div>
+          ) : (
             <div className={styles.sessionControls}>
-              <button 
-                className={`${styles.sessionButton} ${
-                  mainSelectedStudent 
-                    ? styles.startSession 
+              <button
+                className={`${styles.sessionButton} ${mainSelectedStudent
+                    ? styles.startSession
                     : styles.disabledSession
-                }`}
+                  }`}
                 onClick={handleToggleSession}
                 disabled={!mainSelectedStudent}
               >
-                {isLiveSessionActive ? 'End Session' : 'Start Session'}
+                Start Session
               </button>
             </div>
           )}
         </div>
       </div>
-      
+
       {/* File View Section */}
       <div className={styles.fileViewSection}>
         <div className={styles.panelHeader}>
@@ -337,7 +303,7 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
             {selectedFile ? `File Viewer - ${selectedFile.name.replace(/\.[^/.]+$/, "")}` : 'File Viewer'}
           </h2>
           {selectedFile && (
-            <button 
+            <button
               onClick={toggleFileViewerFullscreen}
               className={styles.fullscreenButton}
               title="Enter Fullscreen"
@@ -348,8 +314,8 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
         </div>
         <div className={styles.panelContent}>
           {selectedFile ? (
-            <FileViewer 
-              file={selectedFile} 
+            <FileViewer
+              file={selectedFile}
               isFullscreen={false}
               onClose={() => setSelectedFile(null)}
             />
@@ -361,25 +327,25 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
           )}
         </div>
       </div>
-      
+
       {/* Messages Section */}
       <div className={styles.messagesSection}>
         <div className={styles.panelHeader}>
           <h2 className={styles.panelTitle}>Messages</h2>
           <div className={styles.panelSubtitle}>
-            {messageSelectedStudents.length > 0 
+            {messageSelectedStudents.length > 0
               ? messageSelectedStudents.map(id => students.find(s => s.id === id)?.name).join(', ')
               : 'None selected'}
           </div>
         </div>
         <div className={styles.panelContent}>
           <div className={styles.messageHistory}>
-            <MessageHistory 
-              messages={messages} 
-              students={students} 
+            <MessageHistory
+              messages={messages}
+              students={students}
             />
           </div>
-          <MessageInput 
+          <MessageInput
             students={students}
             selectedStudents={messageSelectedStudents}
             onStudentSelect={handleMessageStudentSelect}
@@ -387,14 +353,14 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
           />
         </div>
       </div>
-      
+
       {/* Files Section */}
       <div className={styles.filesSection}>
         <div className={styles.panelHeader}>
           <h2 className={styles.panelTitle}>Files</h2>
           <div className={styles.panelSubtitle}>
-            {mainSelectedStudent 
-              ? `Shared with ${students.find(s => s.id === mainSelectedStudent)?.name}` 
+            {mainSelectedStudent
+              ? `Shared with ${students.find(s => s.id === mainSelectedStudent)?.name}`
               : 'All Files - Select student to share'}
           </div>
         </div>
@@ -404,7 +370,7 @@ const DesktopLayout = ({ selectedStudents, onStudentSelect }) => {
               <div className={styles.filesGrid}>
                 {files.map(file => (
                   <div key={file.id} className={styles.fileCard}>
-                    <FileItem 
+                    <FileItem
                       file={file}
                       onShare={() => toggleFileShare(file.id)}
                       isShared={mainSelectedStudent && file.sharedWith?.includes(mainSelectedStudent)}
